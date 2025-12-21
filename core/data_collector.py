@@ -158,11 +158,23 @@ class NotionDataSourceCollector:
             url = block["embed"].get("url", "")
             result = f"{indent}[Embed: {url}]"
         
+        # ✅ 테이블 처리 추가
+        elif block_type == "table":
+            # 테이블 자체는 텍스트 없지만, 하위 table_row들을 처리
+            result = f"{indent}[Table]"
+            
         # 테이블 행
         elif block_type == "table_row":
             cells = block["table_row"].get("cells", [])
             row_data = [self.extract_rich_text(cell) for cell in cells]
             result = f"{indent}| " + " | ".join(row_data) + " |"
+        
+        # ✅ Column 처리 추가 (2단 레이아웃)
+        elif block_type == "column_list":
+            result = ""  # 컬럼 리스트는 구분자만
+            
+        elif block_type == "column":
+            result = ""  # 개별 컬럼도 하위 블록만 처리
         
         # 구분선
         elif block_type == "divider":
@@ -194,8 +206,12 @@ class NotionDataSourceCollector:
             title = block["child_database"].get("title", "")
             result = f"{indent}🗃️ [{title}]"
         
-        # 기타 (table, column_list 등은 무시)
-        elif block_type not in ["table", "column_list", "column", "synced_block"]:
+        # ✅ synced_block 처리 추가
+        elif block_type == "synced_block":
+            result = ""  # 동기화 블록도 하위 내용만
+        
+        # 기타
+        else:
             result = f"{indent}[{block_type}]"
         
         # 하위 블록 처리

@@ -2,3 +2,6 @@
 .python-version
 .venv
 data/*
+test.ipynb
+__pycache__
+*.pyc

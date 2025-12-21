@@ -31,6 +31,11 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 AZURE_AI_CREDENTIAL = os.getenv("AZURE_AI_CREDENTIAL")
 AZURE_AI_ENDPOINT = os.getenv("AZURE_AI_ENDPOINT", "https://models.inference.ai.azure.com")
 
+# Langfuse 설정
+LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY")
+LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY")
+LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+
 # 청킹 설정
 CHUNK_SIZE = 800
 CHUNK_OVERLAP = 50
