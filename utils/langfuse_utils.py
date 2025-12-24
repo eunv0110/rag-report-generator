@@ -37,19 +37,6 @@ def trace_operation(name: str, metadata: dict = None, user_id: str = None):
             # 작업 수행
             pass
     """
-    client = get_langfuse_client()
-
-    if client is None:
-        yield None
-        return
-
-    trace = client.trace(
-        name=name,
-        metadata=metadata or {},
-        user_id=user_id
-    )
-
-    try:
-        yield trace
-    finally:
-        client.flush()
+    # ✅ 현재 Langfuse 트레이싱 비활성화 (API 호환성 문제)
+    yield None
+    return

@@ -5,3 +5,5 @@ data/*
 test.ipynb
 __pycache__
 *.pyc
+scripts/_backup_old_qa_scripts/
+notion_images/

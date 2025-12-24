@@ -1,11 +1,22 @@
 embeddings:
-  provider: "openai"
-  model: "openai/text-embedding-3-large"
-  dimension: 3072
-  batch_size: 20
-  api_key_env: "OPENROUTER_API_KEY"
-  base_url: "https://openrouter.ai/api/v1"
-  db_name: "openai-large"  # ✅ 추가: DB 식별자
+  #3provider: "azure"
+  #model: "text-embedding-3-large"
+  ##dimension: 3072
+  #batch_size: 20
+  #api_key_env: "AZURE_AI_CREDENTIAL"
+  #endpoint_env: "AZURE_AI_ENDPOINT"
+  #api_version: "2024-02-01"
+  #db_name: "openai-large"  # ✅ 임시로 OpenRouter DB 사용 (API 호출 없음)
+
+# OpenRouter 임베딩 설정 (한도 초과로 비활성화)
+embeddings:
+   provider: "openai"
+   model: "openai/text-embedding-3-large"
+   dimension: 3072
+   batch_size: 20
+   api_key_env: "OPENROUTER_API_KEY"
+   base_url: "https://openrouter.ai/api/v1"
+   db_name: "openai-large"
 
 vision:
   provider: "gpt4"

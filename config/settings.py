@@ -50,3 +50,10 @@ QDRANT_COLLECTION = "notion_docs"
 DATA_DIR.mkdir(exist_ok=True)
 IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 Path(QDRANT_PATH).parent.mkdir(parents=True, exist_ok=True)
+
+#평가 데이터 셋
+DEFAULT_NUM_SAMPLES = 20
+MAX_TEXT_LENGTH = 1000
+MIN_CONTENT_LENGTH = 100
+DEFAULT_OUTPUT_DIR = "data/evaluation"
+PROMPT_FILE = "prompts/templates/data/qa_generation_prompt.txt"
