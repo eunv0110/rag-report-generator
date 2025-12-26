@@ -1,15 +1,15 @@
 from typing import List
 import time
 from openai import OpenAI
-from models.base import BaseEmbedder
+from langchain_core.embeddings import Embeddings
 
-class OpenAIEmbedder(BaseEmbedder):
+class OpenAIEmbedder(Embeddings):
     def __init__(self, model: str, api_key: str, base_url: str, batch_size: int = 100):
         self.model = model
         self.batch_size = batch_size
         self.client = OpenAI(api_key=api_key, base_url=base_url)
     
-    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """배치 임베딩 생성 (에러 핸들링 + 재시도)"""
         all_embeddings = []
         
@@ -71,12 +71,12 @@ class OpenAIEmbedder(BaseEmbedder):
                 embeddings.append([0.0] * 3072)  # dimension 맞춰야 함
         return embeddings
     
-    def embed_query(self, query: str) -> List[float]:
+    def embed_query(self, text: str) -> List[float]:
         """단일 쿼리 임베딩"""
         try:
             response = self.client.embeddings.create(
                 model=self.model,
-                input=[query]
+                input=[text]
             )
             return response.data[0].embedding
         except Exception as e:

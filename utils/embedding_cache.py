@@ -1,6 +1,7 @@
 """임베딩 캐시 유틸리티
 
 평가 시 동일한 질문의 임베딩을 재사용하여 API 비용과 시간을 절약합니다.
+LangChain의 캐시 시스템을 사용합니다.
 """
 
 import json
@@ -8,6 +9,9 @@ import hashlib
 from pathlib import Path
 from typing import List, Dict, Optional, Any
 from datetime import datetime
+from langchain_classic.embeddings import CacheBackedEmbeddings
+from langchain_classic.storage import LocalFileStore
+from langchain_core.embeddings import Embeddings
 
 
 class EmbeddingCache:
@@ -214,22 +218,33 @@ class EmbeddingCache:
 
 
 class CachedEmbedder:
-    """임베딩 모델을 래핑하여 캐시 기능을 제공하는 클래스"""
+    """LangChain의 CacheBackedEmbeddings를 사용하는 임베딩 캐시 래퍼"""
 
     def __init__(self, embedder, cache: Optional[EmbeddingCache] = None, model_name: str = "default"):
         """
         Args:
-            embedder: 원본 임베딩 모델 (embed_texts 메서드 필요)
-            cache: 임베딩 캐시 객체 (None이면 새로 생성)
+            embedder: 원본 임베딩 모델 (LangChain Embeddings 인터페이스)
+            cache: 레거시 캐시 객체 (통계용, 실제로는 LocalFileStore 사용)
             model_name: 모델 이름 (캐시 키 생성에 사용)
         """
         self.embedder = embedder
         self.cache = cache or EmbeddingCache()
         self.model_name = model_name
 
+        # LangChain의 LocalFileStore 캐시 백엔드 생성
+        cache_dir = str(self.cache.cache_dir / "langchain_store")
+        self.file_store = LocalFileStore(cache_dir)
+
+        # CacheBackedEmbeddings 생성
+        self.cached_embedder = CacheBackedEmbeddings.from_bytes_store(
+            underlying_embeddings=embedder,
+            document_embedding_cache=self.file_store,
+            namespace=model_name
+        )
+
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
         """
-        캐시를 사용하여 텍스트 임베딩 생성
+        LangChain 캐시를 사용하여 텍스트 임베딩 생성
 
         Args:
             texts: 임베딩할 텍스트 리스트
@@ -237,30 +252,17 @@ class CachedEmbedder:
         Returns:
             임베딩 벡터 리스트
         """
-        # 1. 캐시에서 조회
-        embeddings, miss_indices = self.cache.get_batch(texts, self.model_name)
+        # LangChain이 자동으로 캐시 확인 및 저장
+        embeddings = self.cached_embedder.embed_documents(texts)
 
-        # 2. 캐시 미스 항목만 임베딩 생성
-        if miss_indices:
-            miss_texts = [texts[i] for i in miss_indices]
-            print(f"  💾 캐시 미스 {len(miss_indices)}개 항목 임베딩 생성 중...")
-
-            new_embeddings = self.embedder.embed_texts(miss_texts)
-
-            # 3. 새로 생성한 임베딩을 캐시에 저장
-            self.cache.set_batch(miss_texts, new_embeddings, self.model_name)
-
-            # 4. 결과 병합
-            for i, embedding in zip(miss_indices, new_embeddings):
-                embeddings[i] = embedding
-        else:
-            print(f"  ✅ 모든 항목({len(texts)}개)이 캐시에서 조회됨")
+        # 통계 업데이트 (대략적)
+        self.cache.misses += len(texts)  # 실제로는 LangChain이 내부에서 처리
 
         return embeddings
 
     def embed_query(self, query: str) -> List[float]:
         """
-        단일 쿼리 임베딩 (캐시 사용)
+        단일 쿼리 임베딩 (LangChain 캐시 사용)
 
         Args:
             query: 임베딩할 쿼리
@@ -268,24 +270,14 @@ class CachedEmbedder:
         Returns:
             임베딩 벡터
         """
-        # 캐시 조회
-        cached_embedding = self.cache.get(query, self.model_name)
-        if cached_embedding is not None:
-            return cached_embedding
-
-        # 캐시 미스 - 새로 생성
-        if hasattr(self.embedder, 'embed_query'):
-            embedding = self.embedder.embed_query(query)
-        else:
-            embedding = self.embedder.embed_texts([query])[0]
-
-        # 캐시에 저장
-        self.cache.set(query, embedding, self.model_name)
-
+        # LangChain의 캐시된 쿼리 임베딩
+        embedding = self.cached_embedder.embed_query(query)
         return embedding
 
     def save_cache(self):
-        """캐시를 파일에 저장"""
+        """캐시를 파일에 저장 (LangChain은 자동 저장)"""
+        # LangChain의 LocalFileStore는 자동으로 저장됨
+        # 레거시 캐시 통계 저장
         return self.cache.save()
 
     def get_stats(self) -> Dict[str, Any]:

@@ -1,7 +1,8 @@
 import re
-import base64
 from typing import List, Dict, Optional
 from dataclasses import dataclass, field
+from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownHeaderTextSplitter
+from langchain_core.documents import Document
 from config.settings import CHUNK_SIZE, CHUNK_OVERLAP
 from models.base import BaseVisionModel
 
@@ -25,35 +26,54 @@ class Chunk:
 
 # ========== 청킹 함수들 ==========
 def split_by_markdown_headers(content: str, page_id: str, page_title: str) -> List[Dict]:
-    """마크다운 헤더 기준으로 섹션 분리"""
-    header_pattern = r'^(#{1,3})\s+(.+)$'
-    lines = content.split('\n')
-    sections = []
-    current = {"title": page_title, "level": 0, "path": [page_title], "content": []}
-    
-    for line in lines:
-        match = re.match(header_pattern, line)
-        if match:
-            if current["content"] or current["title"]:
-                sections.append(current.copy())
-            
-            level = len(match.group(1))
-            title = match.group(2).strip()
-            path = [title] if level == 1 else [page_title, title]
-            current = {"title": title, "level": level, "path": path, "content": []}
-        else:
-            current["content"].append(line)
-    
-    if current["content"] or current["title"]:
-        sections.append(current)
-    
+    """LangChain의 MarkdownHeaderTextSplitter를 사용한 섹션 분리"""
+    # LangChain의 헤더 분할기 설정
+    headers_to_split_on = [
+        ("#", "Header 1"),
+        ("##", "Header 2"),
+        ("###", "Header 3"),
+    ]
+
+    markdown_splitter = MarkdownHeaderTextSplitter(
+        headers_to_split_on=headers_to_split_on,
+        strip_headers=False
+    )
+
+    # 문서 분할
+    md_docs = markdown_splitter.split_text(content)
+
+    # 결과를 기존 형식으로 변환
     result = []
-    for sec in sections:
-        content_text = '\n'.join(sec["content"]).strip()
-        if content_text or sec["level"] > 0:
-            full_text = f"{'#' * sec['level']} {sec['title']}\n{content_text}".strip() if sec["level"] > 0 else content_text
-            result.append({"title": sec["title"], "level": sec["level"], "path": sec["path"], "full_text": full_text})
-    
+    for doc in md_docs:
+        # 메타데이터에서 헤더 정보 추출
+        metadata = doc.metadata
+        title = page_title
+        level = 0
+        path = [page_title]
+
+        # 헤더 레벨 확인
+        if "Header 1" in metadata:
+            title = metadata["Header 1"]
+            level = 1
+            path = [title]
+        elif "Header 2" in metadata:
+            title = metadata["Header 2"]
+            level = 2
+            path = [metadata.get("Header 1", page_title), title]
+        elif "Header 3" in metadata:
+            title = metadata["Header 3"]
+            level = 3
+            h1 = metadata.get("Header 1", page_title)
+            h2 = metadata.get("Header 2", "")
+            path = [h1, h2, title] if h2 else [h1, title]
+
+        result.append({
+            "title": title,
+            "level": level,
+            "path": path,
+            "full_text": doc.page_content.strip()
+        })
+
     return result
 
 
@@ -63,29 +83,20 @@ def estimate_tokens(text: str) -> int:
 
 
 def recursive_split(text: str, chunk_size: int = CHUNK_SIZE) -> List[str]:
-    """재귀적 텍스트 분할"""
-    if estimate_tokens(text) <= chunk_size:
-        return [text]
-    
-    for sep in ["\n## ", "\n### ", "\n\n", "\n• ", "\n", ". ", " "]:
-        if sep in text:
-            parts = text.split(sep)
-            chunks = []
-            current = ""
-            for part in parts:
-                test = current + sep + part if current else part
-                if estimate_tokens(test) <= chunk_size:
-                    current = test
-                else:
-                    if current:
-                        chunks.append(current)
-                    current = part
-            if current:
-                chunks.append(current)
-            return chunks
-    
-    char_limit = chunk_size * 4
-    return [text[i:i+char_limit] for i in range(0, len(text), char_limit)]
+    """LangChain의 RecursiveCharacterTextSplitter를 사용한 텍스트 분할"""
+    # 문자 단위로 청크 크기 계산 (토큰 추정: 1토큰 ≈ 4자)
+    char_chunk_size = chunk_size * 4
+    char_overlap = CHUNK_OVERLAP * 4
+
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=char_chunk_size,
+        chunk_overlap=char_overlap,
+        length_function=len,
+        separators=["\n## ", "\n### ", "\n\n", "\n• ", "\n", ". ", " ", ""]
+    )
+
+    chunks = text_splitter.split_text(text)
+    return chunks
 
 
 def find_images_in_text(text: str) -> List[Dict]:

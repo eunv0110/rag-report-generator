@@ -23,11 +23,29 @@
     # RRF + LongContext + MultiQuery 평가
     python scripts/evaluate.py --retriever multiquery --base-retriever ensemble_rrf_longcontext --num-queries 3
 
+    # QueryRewrite 리트리버 평가 (기본 리트리버: ensemble_rrf)
+    python scripts/evaluate.py --retriever query_rewrite --base-retriever ensemble_rrf
+
+    # QueryRewrite + Dense 평가
+    python scripts/evaluate.py --retriever query_rewrite --base-retriever dense
+
     # TimeWeighted 리트리버 평가
     python scripts/evaluate.py --retriever time_weighted --decay-rate 0.01
 
     # RRF + TimeWeighted 평가
     python scripts/evaluate.py --retriever ensemble_rrf_timeweighted --decay-rate 0.01
+
+    # S11: Summary-Level 평가
+    python scripts/evaluate.py --retriever summary
+
+    # S12: Mixed Retrieval 평가
+    python scripts/evaluate.py --retriever mixed
+
+    # RRF + Summary (S11) 평가
+    python scripts/evaluate.py --retriever ensemble_rrf_summary
+
+    # RRF + Mixed (S12) 평가
+    python scripts/evaluate.py --retriever ensemble_rrf_mixed
 
     # 사용 가능한 리트리버 목록 확인
     python scripts/evaluate.py --list-retrievers
@@ -49,7 +67,8 @@ from langchain.chat_models import init_chat_model
 from config.settings import (
     QDRANT_PATH,
     AZURE_AI_CREDENTIAL,
-    AZURE_AI_ENDPOINT
+    AZURE_AI_ENDPOINT,
+    MODEL_CONFIG
 )
 from retrievers.bm25_retriever import BM25Retriever
 from retrievers.dense_retriever import DenseRetriever
@@ -57,6 +76,10 @@ from retrievers.ensemble_retriever import EnsembleRetriever
 from retrievers.ensemble_longcontext_retriever import EnsembleLongContextRetriever
 from retrievers.multiquery_retriever import MultiQueryRetriever
 from retrievers.time_weighted_retriever import TimeWeightedRetriever
+from retrievers.raptor_retriever import RaptorRetriever
+from retrievers.summary_retriever import SummaryRetriever
+from retrievers.mixed_retriever import MixedRetriever
+from retrievers.query_rewrite_retriever import QueryRewriteRetriever
 from utils.langfuse_utils import get_langfuse_client
 from utils.embedding_cache import EmbeddingCache, CachedEmbedder
 from models.embeddings.factory import get_embedder
@@ -81,8 +104,16 @@ AVAILABLE_RETRIEVERS = {
     "ensemble_rrf": "RRF Ensemble (BM25 + Dense)",
     "ensemble_rrf_longcontext": "RRF + LongContextReorder (BM25 + Dense)",
     "ensemble_rrf_timeweighted": "RRF + TimeWeighted (BM25 + TimeWeighted)",
+    "ensemble_rrf_timeweighted_longcontext": "RRF + TimeWeighted + LongContext (BM25 + TimeWeighted)",
     "multiquery": "MultiQuery 리트리버 (기본 리트리버 위에 래핑)",
+    "query_rewrite": "QueryRewrite 리트리버 (쿼리 최적화 + 기본 리트리버)",
     "time_weighted": "TimeWeighted 리트리버",
+    "raptor": "RAPTOR Tree 리트리버 (계층적 문서 구조)",
+    "raptor_refine": "RAPTOR Tree 리트리버 with Refine Summarizer (문맥 일관성 강화)",
+    "ensemble_rrf_raptor": "RRF Ensemble (BM25 + Dense + RAPTOR)",
+    "ensemble_rrf_raptor_refine": "RRF Ensemble (BM25 + Dense + RAPTOR Refine)",
+    "ensemble_rrf_summary": "S11: RRF Ensemble (BM25 + Dense[notion_summary])",
+    "ensemble_rrf_mixed": "S12: RRF Ensemble (BM25 + Dense[notion_mixed])",
 }
 
 
@@ -374,7 +405,9 @@ def create_retriever(
     def get_cached_embedder():
         base_embedder = get_embedder()
         if embedding_cache:
-            return CachedEmbedder(base_embedder, embedding_cache, model_name="text-embedding-3-large")
+            # 설정 파일에서 모델명 가져오기
+            embedding_model = MODEL_CONFIG.get('embeddings', {}).get('model', 'text-embedding-3-large')
+            return CachedEmbedder(base_embedder, embedding_cache, model_name=embedding_model)
         return base_embedder
 
     # BM25 리트리버
@@ -441,6 +474,22 @@ def create_retriever(
         )
         retriever_tags = ["ensemble", "rrf", "bm25", "time_weighted", f"decay_{decay_rate}"]
 
+    # RRF + TimeWeighted + LongContext
+    elif retriever_type == "ensemble_rrf_timeweighted_longcontext":
+        bm25 = BM25Retriever(qdrant_client, use_korean_tokenizer=True)
+        embedder = get_cached_embedder()
+        tw = TimeWeightedRetriever(
+            qdrant_client=qdrant_client,
+            embedder=embedder,
+            decay_rate=decay_rate,
+            name=f"time_weighted_decay{decay_rate}"
+        )
+        retriever = EnsembleLongContextRetriever(
+            retrievers=[bm25, tw],
+            name=f"ensemble_rrf_timeweighted_longcontext_{decay_rate}"
+        )
+        retriever_tags = ["ensemble", "rrf", "longcontext", "bm25", "time_weighted", f"decay_{decay_rate}"]
+
     # MultiQuery 리트리버
     elif retriever_type == "multiquery":
         # 기본 리트리버 생성
@@ -456,6 +505,105 @@ def create_retriever(
             name=f"multiquery_{base_retriever.name}"
         )
         retriever_tags = ["multiquery", f"num_queries_{num_queries}"] + base_tags
+
+    # RAPTOR 리트리버
+    elif retriever_type == "raptor":
+        embedder = get_cached_embedder()
+        retriever = RaptorRetriever(
+            qdrant_client=qdrant_client,
+            embedder=embedder,
+            collection_name="notion_raptor"
+        )
+        retriever_tags = ["raptor", "tree", "hierarchical"]
+
+    # RAPTOR Refine 리트리버
+    elif retriever_type == "raptor_refine":
+        embedder = get_cached_embedder()
+        retriever = RaptorRetriever(
+            qdrant_client=qdrant_client,
+            embedder=embedder,
+            collection_name="notion_raptor_refine",
+            name="raptor_refine"
+        )
+        retriever_tags = ["raptor", "tree", "hierarchical", "refine"]
+
+    # RRF + RAPTOR
+    elif retriever_type == "ensemble_rrf_raptor":
+        bm25 = BM25Retriever(qdrant_client, use_korean_tokenizer=True)
+        embedder = get_cached_embedder()
+        dense = DenseRetriever(qdrant_client, embedder=embedder)
+        raptor = RaptorRetriever(
+            qdrant_client=qdrant_client,
+            embedder=embedder,
+            collection_name="notion_raptor"
+        )
+        retriever = EnsembleRetriever(
+            retrievers=[bm25, dense, raptor],
+            name="ensemble_rrf_raptor"
+        )
+        retriever_tags = ["ensemble", "rrf", "bm25", "dense", "raptor"]
+
+    # RRF + RAPTOR Refine
+    elif retriever_type == "ensemble_rrf_raptor_refine":
+        bm25 = BM25Retriever(qdrant_client, use_korean_tokenizer=True)
+        embedder = get_cached_embedder()
+        dense = DenseRetriever(qdrant_client, embedder=embedder)
+        raptor = RaptorRetriever(
+            qdrant_client=qdrant_client,
+            embedder=embedder,
+            collection_name="notion_raptor_refine",
+            name="raptor_refine"
+        )
+        retriever = EnsembleRetriever(
+            retrievers=[bm25, dense, raptor],
+            name="ensemble_rrf_raptor_refine"
+        )
+        retriever_tags = ["ensemble", "rrf", "bm25", "dense", "raptor", "refine"]
+
+    # RRF + Summary (S11) - BM25 + Dense(notion_summary)
+    elif retriever_type == "ensemble_rrf_summary":
+        bm25 = BM25Retriever(qdrant_client, use_korean_tokenizer=True)
+        embedder = get_cached_embedder()
+        dense_summary = DenseRetriever(
+            qdrant_client=qdrant_client,
+            embedder=embedder,
+            collection_name="notion_summary"
+        )
+        retriever = EnsembleRetriever(
+            retrievers=[bm25, dense_summary],
+            name="ensemble_rrf_summary"
+        )
+        retriever_tags = ["ensemble", "rrf", "bm25", "dense", "summary", "s11"]
+
+    # RRF + Mixed (S12) - BM25 + Dense(notion_mixed)
+    elif retriever_type == "ensemble_rrf_mixed":
+        bm25 = BM25Retriever(qdrant_client, use_korean_tokenizer=True)
+        embedder = get_cached_embedder()
+        dense_mixed = DenseRetriever(
+            qdrant_client=qdrant_client,
+            embedder=embedder,
+            collection_name="notion_mixed"
+        )
+        retriever = EnsembleRetriever(
+            retrievers=[bm25, dense_mixed],
+            name="ensemble_rrf_mixed"
+        )
+        retriever_tags = ["ensemble", "rrf", "bm25", "dense", "mixed", "s12"]
+
+    # QueryRewrite 리트리버
+    elif retriever_type == "query_rewrite":
+        # 기본 리트리버 생성
+        base_retriever, base_tags = create_retriever(
+            base_retriever_type,
+            qdrant_client,
+            embedding_cache,
+            decay_rate=decay_rate
+        )
+        retriever = QueryRewriteRetriever(
+            base_retriever=base_retriever,
+            name=f"query_rewrite_{base_retriever.name}"
+        )
+        retriever_tags = ["query_rewrite", "llm_optimization"] + base_tags
 
     else:
         raise ValueError(f"알 수 없는 리트리버 타입: {retriever_type}")

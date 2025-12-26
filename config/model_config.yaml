@@ -1,22 +1,43 @@
-embeddings:
-  #3provider: "azure"
-  #model: "text-embedding-3-large"
-  ##dimension: 3072
-  #batch_size: 20
-  #api_key_env: "AZURE_AI_CREDENTIAL"
-  #endpoint_env: "AZURE_AI_ENDPOINT"
-  #api_version: "2024-02-01"
-  #db_name: "openai-large"  # ✅ 임시로 OpenRouter DB 사용 (API 호출 없음)
+# OpenRouter 임베딩 설정
+#embeddings:
+   #provider: "openai"
+   #model: "openai/text-embedding-3-large"
+   #dimension: 3072
+   #batch_size: 20
+   #api_key_env: "OPENROUTER_API_KEY"
+   #base_url: "https://openrouter.ai/api/v1"
+   #db_name: "openai-large"
 
-# OpenRouter 임베딩 설정 (한도 초과로 비활성화)
+#OpenRouter 임베딩 설정 - qwen
+#embeddings:
+   #provider: "openai"  # OpenRouter는 OpenAI 호환 API 사용
+   #model: "qwen/qwen3-embedding-4b"
+   #dimension: 2560  # 확인 필요
+   #batch_size: 20
+   #api_key_env: "OPENROUTER_API_KEY"
+   #base_url: "https://openrouter.ai/api/v1"
+   #db_name: "qwen3-embedding-4b"
+
+#OpenRouter 임베딩 설정 - qwen
 embeddings:
-   provider: "openai"
-   model: "openai/text-embedding-3-large"
-   dimension: 3072
+   provider: "openai"  # OpenRouter는 OpenAI 호환 API 사용
+   model: "baai/bge-m3"
+   dimension: 1024  # 확인 필요
    batch_size: 20
    api_key_env: "OPENROUTER_API_KEY"
    base_url: "https://openrouter.ai/api/v1"
-   db_name: "openai-large"
+   db_name: "baai-bge-m3"
+
+
+# OpenRouter 임베딩 설정 - Gemini
+#embeddings:
+   #provider: "openai"
+   #model: "google/gemini-embedding-001"
+   #dimension: 3072
+   #batch_size: 20
+   #api_key_env: "OPENROUTER_API_KEY"
+   #base_url: "https://openrouter.ai/api/v1"
+   #db_name: "gemini-embedding-001"
 
 vision:
   provider: "gpt4"

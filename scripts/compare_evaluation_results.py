@@ -16,6 +16,16 @@ from typing import Dict, Any, List
 from collections import defaultdict
 import json
 
+# ====================================================================
+# 데이터 경로 설정 (여기를 수정하세요)
+# ====================================================================
+FILE1_PATH = "/home/work/rag/Project/rag-report-generator/data/langfuse/gemini/eval_ensemble_rrf_ensemble_rrf_20251225_v1.csv"
+FILE2_PATH = "/home/work/rag/Project/rag-report-generator/data/langfuse/gemini/eval_ensemble_rrf_timeweighted_longcontext_0.01_ensemble_rrf_timeweighted_longcontext_0.01_20251225.csv"
+FILE3_PATH = "/home/work/rag/Project/rag-report-generator/data/langfuse/gemini/eval_multiquery_ensemble_rrf_longcontext_multiquery_ensemble_rrf_longcontext_20251225.csv"
+FILE4_PATH = "/home/work/rag/Project/rag-report-generator/data/langfuse/gemini/eval_multiquery_ensemble_rrf_multiquery_ensemble_rrf_20251225.csv"
+
+OUTPUT_PATH = None  # 결과를 JSON으로 저장하려면 경로 지정 (예: "results/comparison.json")
+
 
 def load_csv_data(csv_path: str) -> pd.DataFrame:
     """
@@ -28,9 +38,21 @@ def load_csv_data(csv_path: str) -> pd.DataFrame:
         pandas DataFrame
     """
     print(f"📂 파일 로딩 중: {csv_path}")
-    df = pd.read_csv(csv_path)
-    print(f"   ✅ {len(df)} 행 로드됨")
-    return df
+
+    # 여러 인코딩을 시도
+    encodings = ['utf-8', 'cp949', 'euc-kr', 'latin1']
+
+    for encoding in encodings:
+        try:
+            df = pd.read_csv(csv_path, encoding=encoding)
+            print(f"   ✅ {len(df)} 행 로드됨 (인코딩: {encoding})")
+            return df
+        except UnicodeDecodeError:
+            continue
+
+    # 모든 인코딩 실패시 에러
+    raise ValueError(f"파일을 읽을 수 없습니다. 시도한 인코딩: {encodings}")
+
 
 
 def extract_metrics_by_trace(df: pd.DataFrame) -> Dict[str, Dict[str, float]]:
@@ -141,6 +163,125 @@ def analyze_single_file(df: pd.DataFrame, file_name: str) -> Dict[str, Any]:
         "metrics": stats,
         "trace_metrics": trace_metrics
     }
+
+
+def compare_four_files(
+    result1: Dict[str, Any],
+    result2: Dict[str, Any],
+    result3: Dict[str, Any],
+    result4: Dict[str, Any]
+) -> None:
+    """
+    4개 파일의 결과를 한 번에 비교 및 출력
+
+    Args:
+        result1: 첫 번째 파일 분석 결과
+        result2: 두 번째 파일 분석 결과
+        result3: 세 번째 파일 분석 결과
+        result4: 네 번째 파일 분석 결과
+    """
+    results = [result1, result2, result3, result4]
+
+    print("\n" + "=" * 150)
+    print("🏆 4개 파일 비교 결과")
+    print("=" * 150)
+
+    # 기본 통계 비교
+    print(f"\n{'항목':<30} {result1['file_name']:<28} {result2['file_name']:<28} {result3['file_name']:<28} {result4['file_name']:<28}")
+    print("-" * 150)
+    print(f"{'총 Trace 수':<30} {result1['total_traces']:<28} {result2['total_traces']:<28} {result3['total_traces']:<28} {result4['total_traces']:<28}")
+    print(f"{'총 평가 항목 수':<30} {result1['total_evaluations']:<28} {result2['total_evaluations']:<28} {result3['total_evaluations']:<28} {result4['total_evaluations']:<28}")
+
+    # 메트릭별 비교
+    all_metrics = set()
+    for result in results:
+        all_metrics.update(result["metrics"].keys())
+
+    if all_metrics:
+        print("\n" + "=" * 150)
+        print("📊 메트릭별 비교")
+        print("=" * 150)
+
+        for metric_name in sorted(all_metrics):
+            print(f"\n[{metric_name}]")
+
+            # 헤더 출력
+            print(f"{'통계':<20} {result1['file_name']:<28} {result2['file_name']:<28} {result3['file_name']:<28} {result4['file_name']:<28}")
+            print("-" * 150)
+
+            # 각 통계 항목별로 4개 파일 비교
+            stats_list = [result["metrics"].get(metric_name, {}) for result in results]
+
+            # 개수
+            counts = [stats.get('count', 0) for stats in stats_list]
+            print(f"{'개수':<20} {counts[0]:<28} {counts[1]:<28} {counts[2]:<28} {counts[3]:<28}")
+
+            # 평균
+            avgs = [stats.get('avg', 0) for stats in stats_list]
+            avg_str = [f"{avg:.4f}" for avg in avgs]
+            print(f"{'평균':<20} {avg_str[0]:<28} {avg_str[1]:<28} {avg_str[2]:<28} {avg_str[3]:<28}")
+
+            # 최고 평균 찾기
+            if any(stats_list):
+                max_avg = max(avgs)
+                max_idx = avgs.index(max_avg)
+                print(f"{'  → 최고 평균':<20} {results[max_idx]['file_name']} ({max_avg:.4f})")
+
+            # 중앙값
+            medians = [stats.get('median', 0) for stats in stats_list]
+            med_str = [f"{med:.4f}" for med in medians]
+            print(f"{'중앙값':<20} {med_str[0]:<28} {med_str[1]:<28} {med_str[2]:<28} {med_str[3]:<28}")
+
+            # 표준편차
+            stds = [stats.get('std', 0) for stats in stats_list]
+            std_str = [f"{std:.4f}" for std in stds]
+            print(f"{'표준편차':<20} {std_str[0]:<28} {std_str[1]:<28} {std_str[2]:<28} {std_str[3]:<28}")
+
+            # 최소값
+            mins = [stats.get('min', 0) for stats in stats_list]
+            min_str = [f"{m:.4f}" for m in mins]
+            print(f"{'최소값':<20} {min_str[0]:<28} {min_str[1]:<28} {min_str[2]:<28} {min_str[3]:<28}")
+
+            # 최대값
+            maxs = [stats.get('max', 0) for stats in stats_list]
+            max_str = [f"{m:.4f}" for m in maxs]
+            print(f"{'최대값':<20} {max_str[0]:<28} {max_str[1]:<28} {max_str[2]:<28} {max_str[3]:<28}")
+
+    # Trace 비교
+    all_traces = [set(result["trace_metrics"].keys()) for result in results]
+    common_traces = all_traces[0].intersection(*all_traces[1:])
+
+    print("\n" + "=" * 150)
+    print("🔍 Trace 비교")
+    print("=" * 150)
+    print(f"전체 공통 Trace 수: {len(common_traces)}")
+    for i, result in enumerate(results, 1):
+        print(f"{result['file_name']}: {len(all_traces[i-1])} Traces")
+
+    # 공통 Trace에 대한 메트릭 순위 분석
+    if common_traces and all_metrics:
+        print("\n" + "=" * 150)
+        print("📈 공통 Trace 메트릭 순위 (평균 기준)")
+        print("=" * 150)
+
+        ranking = {}
+        for metric_name in sorted(all_metrics):
+            metric_avgs = []
+            for result in results:
+                if metric_name in result["metrics"]:
+                    metric_avgs.append({
+                        "file_name": result["file_name"],
+                        "avg": result["metrics"][metric_name].get("avg", 0)
+                    })
+
+            # 평균값 기준 내림차순 정렬
+            metric_avgs.sort(key=lambda x: x["avg"], reverse=True)
+            ranking[metric_name] = metric_avgs
+
+        for metric_name, ranks in ranking.items():
+            print(f"\n{metric_name}:")
+            for i, rank_data in enumerate(ranks, 1):
+                print(f"   {i}위: {rank_data['file_name']:<30} (평균: {rank_data['avg']:.4f})")
 
 
 def compare_two_files(
@@ -259,46 +400,32 @@ def compare_two_files(
 
 def main():
     """메인 함수"""
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="두 개의 Langfuse CSV 평가 결과 파일 비교",
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    parser.add_argument(
-        "file1",
-        type=str,
-        help="첫 번째 CSV 파일 경로"
-    )
-    parser.add_argument(
-        "file2",
-        type=str,
-        help="두 번째 CSV 파일 경로"
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        default=None,
-        help="결과 저장 경로 (JSON 형식)"
-    )
-
-    args = parser.parse_args()
+    # 스크립트 상단의 설정 사용
+    file1_path = FILE1_PATH
+    file2_path = FILE2_PATH
+    file3_path = FILE3_PATH
+    file4_path = FILE4_PATH
+    output_path = OUTPUT_PATH
 
     # CSV 파일 로드
-    df1 = load_csv_data(args.file1)
-    df2 = load_csv_data(args.file2)
+    df1 = load_csv_data(file1_path)
+    df2 = load_csv_data(file2_path)
+    df3 = load_csv_data(file3_path)
+    df4 = load_csv_data(file4_path)
 
     # 각 파일 분석
-    result1 = analyze_single_file(df1, Path(args.file1).name)
-    result2 = analyze_single_file(df2, Path(args.file2).name)
+    result1 = analyze_single_file(df1, Path(file1_path).name)
+    result2 = analyze_single_file(df2, Path(file2_path).name)
+    result3 = analyze_single_file(df3, Path(file3_path).name)
+    result4 = analyze_single_file(df4, Path(file4_path).name)
 
-    # 두 파일 비교
-    compare_two_files(result1, result2)
+    # 4개 파일 비교
+    compare_four_files(result1, result2, result3, result4)
 
     # 결과 저장 (선택적)
-    if args.output:
-        output_path = Path(args.output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+    if output_path:
+        output_path_obj = Path(output_path)
+        output_path_obj.parent.mkdir(parents=True, exist_ok=True)
 
         save_data = {
             "file1": {
@@ -312,13 +439,25 @@ def main():
                 "total_traces": result2["total_traces"],
                 "total_evaluations": result2["total_evaluations"],
                 "metrics": result2["metrics"]
+            },
+            "file3": {
+                "name": result3["file_name"],
+                "total_traces": result3["total_traces"],
+                "total_evaluations": result3["total_evaluations"],
+                "metrics": result3["metrics"]
+            },
+            "file4": {
+                "name": result4["file_name"],
+                "total_traces": result4["total_traces"],
+                "total_evaluations": result4["total_evaluations"],
+                "metrics": result4["metrics"]
             }
         }
 
-        with open(output_path, "w", encoding="utf-8") as f:
+        with open(output_path_obj, "w", encoding="utf-8") as f:
             json.dump(save_data, f, indent=2, ensure_ascii=False, default=str)
 
-        print(f"\n💾 결과 저장: {output_path}")
+        print(f"\n💾 결과 저장: {output_path_obj}")
 
 
 if __name__ == "__main__":

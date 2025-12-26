@@ -1,148 +1,106 @@
-"""BM25 기반 검색 리트리버"""
+#!/usr/bin/env python3
+"""BM25 Retriever - LangChain 기반 키워드 검색"""
 
-from typing import List, Dict, Any, Optional
-from rank_bm25 import BM25Okapi
+import sys
+from pathlib import Path
+from typing import List
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from langchain_community.retrievers import BM25Retriever
+from langchain_core.documents import Document
 from qdrant_client import QdrantClient
-from config.settings import QDRANT_COLLECTION
-from .base_retriever import BaseRetriever, SearchResult
-import jieba
+from config.settings import QDRANT_PATH, QDRANT_COLLECTION
 
 
-class BM25Retriever(BaseRetriever):
-    """BM25 기반 검색 엔진"""
+def load_documents_from_qdrant() -> List[Document]:
+    """Qdrant에서 모든 문서를 로드하여 LangChain Document로 변환"""
+    client = QdrantClient(path=QDRANT_PATH)
 
-    def __init__(self, qdrant_client: QdrantClient, use_korean_tokenizer: bool = True):
-        """
-        Args:
-            qdrant_client: Qdrant 클라이언트
-            use_korean_tokenizer: 한국어 토크나이저 사용 여부 (jieba 사용)
-        """
-        self.client = qdrant_client
-        self.use_korean_tokenizer = use_korean_tokenizer
-        self.corpus = []
-        self.tokenized_corpus = []
-        self.bm25 = None
-        self.metadata = []
-
-        self._load_corpus()
-
-    def _tokenize(self, text: str) -> List[str]:
-        """텍스트 토크나이징"""
-        if self.use_korean_tokenizer:
-            # jieba를 사용한 한국어/중국어 토크나이징
-            return list(jieba.cut(text.lower()))
-        else:
-            # 기본 공백 기반 토크나이징
-            return text.lower().split()
-
-    def _load_corpus(self):
-        """Qdrant에서 전체 문서 로드 및 BM25 인덱스 구축"""
-        print("📚 BM25 인덱스 구축 중...")
-
-        # Qdrant에서 모든 문서 가져오기
-        scroll_result = self.client.scroll(
+    try:
+        # 모든 포인트 가져오기
+        scroll_result = client.scroll(
             collection_name=QDRANT_COLLECTION,
             limit=10000,
             with_payload=True,
             with_vectors=False  # 벡터는 필요 없음
         )
 
-        points = scroll_result[0]
+        documents = []
+        for point in scroll_result[0]:
+            # payload 구조: {"page_content": "...", "metadata": {...}}
+            page_content = point.payload.get("page_content", "")
+            metadata_dict = point.payload.get("metadata", {})
 
-        for point in points:
-            payload = point.payload
+            # metadata 추출
+            metadata = {
+                "page_id": metadata_dict.get("page_id", ""),
+                "page_title": metadata_dict.get("page_title", ""),
+                "section_title": metadata_dict.get("section_title", ""),
+                "section_path": metadata_dict.get("section_path", ""),
+                "chunk_id": metadata_dict.get("chunk_id", ""),
+                "has_image": metadata_dict.get("has_image", False),
+                "image_paths": metadata_dict.get("image_paths", []),
+                "image_descriptions": metadata_dict.get("image_descriptions", []),
+            }
 
-            # combined_text를 corpus로 사용
-            text = payload.get("combined_text", "")
-            self.corpus.append(text)
-            self.tokenized_corpus.append(self._tokenize(text))
+            doc = Document(
+                page_content=page_content,
+                metadata=metadata
+            )
+            documents.append(doc)
 
-            # 메타데이터 저장
-            self.metadata.append({
-                "chunk_id": payload.get("chunk_id"),
-                "page_id": payload.get("page_id"),
-                "text": payload.get("text"),
-                "combined_text": text,
-                "page_title": payload.get("page_title"),
-                "section_title": payload.get("section_title"),
-                "section_path": payload.get("section_path"),
-                "has_image": payload.get("has_image", False),
-                "image_descriptions": payload.get("image_descriptions", []),
-                "properties": payload.get("properties", {})
-            })
+        return documents
+    finally:
+        # client 명시적으로 닫기
+        client.close()
 
-        # BM25 인덱스 구축
-        self.bm25 = BM25Okapi(self.tokenized_corpus)
 
-        print(f"✅ BM25 인덱스 구축 완료: {len(self.corpus)}개 문서")
+def get_bm25_retriever(k: int = 5) -> BM25Retriever:
+    """
+    BM25 Retriever 생성
 
-    def search(self, query: str, top_k: int = 5) -> List[SearchResult]:
-        """
-        BM25로 문서 검색
+    Args:
+        k: 반환할 문서 수
 
-        Args:
-            query: 검색 쿼리
-            top_k: 반환할 상위 결과 개수
+    Returns:
+        BM25Retriever 인스턴스
+    """
+    # Qdrant에서 문서 로드
+    documents = load_documents_from_qdrant()
 
-        Returns:
-            검색 결과 리스트
-        """
-        if not self.bm25:
-            raise ValueError("BM25 인덱스가 구축되지 않았습니다")
+    # BM25 Retriever 생성
+    retriever = BM25Retriever.from_documents(documents)
+    retriever.k = k
 
-        # 쿼리 토크나이징
-        tokenized_query = self._tokenize(query)
+    return retriever
 
-        # BM25 스코어 계산
-        scores = self.bm25.get_scores(tokenized_query)
 
-        # 상위 k개 선택
-        top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
+if __name__ == "__main__":
+    # 테스트
+    print("🔍 BM25 Retriever 테스트")
+    print("=" * 60)
 
-        # 결과 구성
-        results = []
-        for idx in top_indices:
-            meta = self.metadata[idx]
-            results.append(SearchResult(
-                chunk_id=meta["chunk_id"],
-                page_id=meta["page_id"],
-                text=meta["text"],
-                combined_text=meta["combined_text"],
-                page_title=meta["page_title"],
-                section_title=meta["section_title"],
-                section_path=meta["section_path"],
-                score=float(scores[idx]),
-                has_image=meta["has_image"],
-                image_descriptions=meta["image_descriptions"],
-                properties=meta["properties"]
-            ))
+    # Retriever 생성
+    retriever = get_bm25_retriever(k=3)
 
-        return results
+    # 테스트 쿼리
+    test_queries = [
+        "RAG 시스템은 어떻게 동작하나요?",
+        "임베딩 모델에 대해 알려주세요",
+        "벡터 데이터베이스란 무엇인가요?"
+    ]
 
-    def batch_search(self, queries: List[str], top_k: int = 5) -> List[List[SearchResult]]:
-        """
-        여러 쿼리를 배치로 검색
+    for query in test_queries:
+        print(f"\n📝 Query: {query}")
+        print("-" * 60)
 
-        Args:
-            queries: 검색 쿼리 리스트
-            top_k: 각 쿼리당 반환할 상위 결과 개수
+        results = retriever.invoke(query)
 
-        Returns:
-            각 쿼리별 검색 결과 리스트
-        """
-        return [self.search(query, top_k) for query in queries]
+        for i, doc in enumerate(results, 1):
+            print(f"\n[{i}] {doc.metadata.get('page_title', 'Unknown')}")
+            print(f"    Section: {doc.metadata.get('section_title', 'N/A')}")
+            print(f"    Content: {doc.page_content[:200]}...")
 
-    @property
-    def name(self) -> str:
-        """리트리버 이름 반환"""
-        tokenizer_name = "Korean" if self.use_korean_tokenizer else "Basic"
-        return f"BM25_{tokenizer_name}"
-
-    def get_info(self) -> Dict[str, Any]:
-        """리트리버 정보 반환"""
-        info = super().get_info()
-        info.update({
-            "use_korean_tokenizer": self.use_korean_tokenizer,
-            "corpus_size": len(self.corpus)
-        })
-        return info
+    print("\n" + "=" * 60)
+    print("✅ BM25 Retriever 테스트 완료")

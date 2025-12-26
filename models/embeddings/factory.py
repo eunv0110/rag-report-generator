@@ -1,10 +1,10 @@
 import os
 import yaml
 from pathlib import Path
+from langchain_core.embeddings import Embeddings
 from models.embeddings.openai_embedder import OpenAIEmbedder
-from models.embeddings.azure_embedder import AzureEmbedder
 
-def get_embedder(config_path: str = None):
+def get_embedder(config_path: str = None) -> Embeddings:
     """설정 파일에서 임베더 생성"""
     if config_path is None:
         config_path = Path(__file__).parent.parent.parent / "config" / "model_config.yaml"
@@ -20,19 +20,6 @@ def get_embedder(config_path: str = None):
             model=emb_config['model'],
             api_key=os.getenv(emb_config['api_key_env']),
             base_url=emb_config['base_url'],
-            batch_size=emb_config.get('batch_size', 100)
-        )
-    elif provider == "azure":
-        # endpoint는 환경변수 또는 직접 값 사용
-        endpoint = os.getenv(emb_config.get('endpoint_env', '')) or emb_config.get('endpoint', '')
-        # 끝의 따옴표와 슬래시 제거
-        endpoint = endpoint.strip("'\"").rstrip('/')
-
-        return AzureEmbedder(
-            model=emb_config['model'],
-            api_key=os.getenv(emb_config['api_key_env']),
-            endpoint=endpoint,
-            api_version=emb_config.get('api_version', '2024-02-01'),
             batch_size=emb_config.get('batch_size', 100)
         )
     else:

@@ -1,6 +1,8 @@
 from typing import List, Set
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PointStruct, PayloadSchemaType
+from langchain_qdrant import QdrantVectorStore
+from langchain_core.embeddings import Embeddings
 from config.settings import QDRANT_COLLECTION
 
 def check_qdrant_data(client: QdrantClient) -> dict:
@@ -80,17 +82,17 @@ def delete_page_from_qdrant(client: QdrantClient, page_id: str):
 
 
 def store_to_qdrant(chunks, embeddings, client: QdrantClient):
-    """Qdrant에 저장"""
+    """Qdrant에 저장 (기존 방식 - 하위 호환성)"""
     import hashlib
-    
+
     points = []
     for chunk, emb in zip(chunks, embeddings):
         pid = hashlib.md5(chunk.chunk_id.encode()).hexdigest()[:32]
         pid = f"{pid[:8]}-{pid[8:12]}-{pid[12:16]}-{pid[16:20]}-{pid[20:]}"
-        
-        props = {k: (v if isinstance(v, (str, int, float, bool, list)) else str(v)) 
+
+        props = {k: (v if isinstance(v, (str, int, float, bool, list)) else str(v))
                 for k, v in chunk.properties.items()}
-        
+
         points.append(PointStruct(
             id=pid,
             vector=emb,
@@ -108,8 +110,55 @@ def store_to_qdrant(chunks, embeddings, client: QdrantClient):
                 "properties": props
             }
         ))
-    
+
     for i in range(0, len(points), 100):
         client.upsert(collection_name=QDRANT_COLLECTION, points=points[i:i+100])
-    
+
     print(f"✅ {len(points)}개 청크 저장 완료")
+
+
+def store_to_qdrant_langchain(chunks, embeddings_model: Embeddings, client: QdrantClient):
+    """LangChain을 사용한 Qdrant 저장"""
+
+    # QdrantVectorStore 초기화
+    vector_store = QdrantVectorStore(
+        client=client,
+        collection_name=QDRANT_COLLECTION,
+        embedding=embeddings_model
+    )
+
+    # 텍스트와 메타데이터 준비
+    texts = [chunk.combined_text for chunk in chunks]
+    metadatas = []
+
+    for chunk in chunks:
+        props = {k: (v if isinstance(v, (str, int, float, bool, list)) else str(v))
+                for k, v in chunk.properties.items()}
+
+        metadata = {
+            "chunk_id": chunk.chunk_id,
+            "page_id": chunk.page_id,
+            "text": chunk.text,
+            "has_image": chunk.has_image,
+            "image_paths": chunk.image_paths,
+            "image_descriptions": chunk.image_descriptions,
+            "page_title": chunk.page_title,
+            "section_title": chunk.section_title,
+            "section_path": chunk.section_path,
+            "properties": props
+        }
+        metadatas.append(metadata)
+
+    # LangChain 방식으로 저장
+    vector_store.add_texts(texts=texts, metadatas=metadatas)
+
+    print(f"✅ {len(chunks)}개 청크 LangChain으로 저장 완료")
+
+
+def get_qdrant_vectorstore(client: QdrantClient, embeddings_model: Embeddings) -> QdrantVectorStore:
+    """LangChain QdrantVectorStore 인스턴스 반환"""
+    return QdrantVectorStore(
+        client=client,
+        collection_name=QDRANT_COLLECTION,
+        embedding=embeddings_model
+    )

@@ -1,124 +1,112 @@
-"""Dense Retrieval (벡터 검색) 리트리버"""
+#!/usr/bin/env python3
+"""Dense Retriever - LangChain Qdrant 기반 벡터 검색"""
 
-from typing import List, Dict, Any, Optional
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from langchain_qdrant import QdrantVectorStore
+from langchain_core.retrievers import BaseRetriever
 from qdrant_client import QdrantClient
-from qdrant_client.models import Filter, FieldCondition, MatchValue
-from config.settings import QDRANT_COLLECTION
+from config.settings import QDRANT_PATH, QDRANT_COLLECTION
 from models.embeddings.factory import get_embedder
-from .base_retriever import BaseRetriever, SearchResult
 
 
-class DenseRetriever(BaseRetriever):
-    """Dense Retrieval (벡터 검색) 엔진"""
+def get_langchain_embeddings(embedder):
+    """기존 embedder를 LangChain Embeddings로 래핑"""
+    from langchain_core.embeddings import Embeddings
+    from typing import List
 
-    def __init__(self, qdrant_client: QdrantClient, embedder=None):
-        """
-        Args:
-            qdrant_client: Qdrant 클라이언트
-            embedder: 임베딩 모델 (None이면 자동 로드)
-        """
-        self.client = qdrant_client
-        self.embedder = embedder or get_embedder()
+    # embedder가 이미 Embeddings 인터페이스를 구현하고 있으면 그대로 반환
+    if isinstance(embedder, Embeddings):
+        return embedder
 
-        print("✅ Dense Retriever 초기화 완료")
+    # 그렇지 않으면 wrapper 생성
+    class CustomEmbeddings(Embeddings):
+        def __init__(self, embedder):
+            self.embedder = embedder
 
-    def search(self, query: str, top_k: int = 5) -> List[SearchResult]:
-        """
-        벡터 검색으로 문서 검색
+        def embed_documents(self, texts: List[str]) -> List[List[float]]:
+            """문서 임베딩"""
+            if hasattr(self.embedder, 'embed_documents'):
+                return self.embedder.embed_documents(texts)
+            elif hasattr(self.embedder, 'embed_texts'):
+                return self.embedder.embed_texts(texts)
+            else:
+                raise AttributeError("embedder에 embed_documents 또는 embed_texts 메서드가 없습니다")
 
-        Args:
-            query: 검색 쿼리
-            top_k: 반환할 상위 결과 개수
+        def embed_query(self, text: str) -> List[float]:
+            """쿼리 임베딩"""
+            if hasattr(self.embedder, 'embed_query'):
+                return self.embedder.embed_query(text)
+            elif hasattr(self.embedder, 'embed_texts'):
+                return self.embedder.embed_texts([text])[0]
+            else:
+                raise AttributeError("embedder에 embed_query 또는 embed_texts 메서드가 없습니다")
 
-        Returns:
-            검색 결과 리스트
-        """
-        # 쿼리 임베딩 생성
-        query_embedding = self.embedder.embed_texts([query])[0]
+    return CustomEmbeddings(embedder)
 
-        # Qdrant에서 유사도 검색
-        search_results = self.client.query_points(
-            collection_name=QDRANT_COLLECTION,
-            query=query_embedding,
-            limit=top_k,
-            with_payload=True
-        ).points
 
-        # 결과 변환
-        results = []
-        for hit in search_results:
-            payload = hit.payload
-            results.append(SearchResult(
-                chunk_id=payload.get("chunk_id"),
-                page_id=payload.get("page_id"),
-                text=payload.get("text"),
-                combined_text=payload.get("combined_text"),
-                page_title=payload.get("page_title"),
-                section_title=payload.get("section_title"),
-                section_path=payload.get("section_path"),
-                score=float(hit.score),
-                has_image=payload.get("has_image", False),
-                image_descriptions=payload.get("image_descriptions", []),
-                properties=payload.get("properties", {})
-            ))
+def get_dense_retriever(k: int = 5, use_singleton: bool = False) -> BaseRetriever:
+    """
+    Dense Retriever 생성 (Qdrant 벡터 검색)
 
-        return results
+    Args:
+        k: 반환할 문서 수
+        use_singleton: True면 기존 client를 재사용 (Qdrant lock 방지)
 
-    def batch_search(self, queries: List[str], top_k: int = 5) -> List[List[SearchResult]]:
-        """
-        여러 쿼리를 배치로 검색
+    Returns:
+        Qdrant VectorStore Retriever 인스턴스
+    """
+    # 임베더 로드
+    base_embedder = get_embedder()
+    langchain_embeddings = get_langchain_embeddings(base_embedder)
 
-        Args:
-            queries: 검색 쿼리 리스트
-            top_k: 각 쿼리당 반환할 상위 결과 개수
+    # Qdrant client 생성
+    client = QdrantClient(path=QDRANT_PATH)
 
-        Returns:
-            각 쿼리별 검색 결과 리스트
-        """
-        # 배치 임베딩 생성
-        query_embeddings = self.embedder.embed_texts(queries)
+    # Qdrant vectorstore 로드
+    vectorstore = QdrantVectorStore(
+        client=client,
+        collection_name=QDRANT_COLLECTION,
+        embedding=langchain_embeddings,
+    )
 
-        results = []
-        for query_embedding in query_embeddings:
-            # Qdrant에서 유사도 검색
-            search_results = self.client.query_points(
-                collection_name=QDRANT_COLLECTION,
-                query=query_embedding,
-                limit=top_k,
-                with_payload=True
-            ).points
+    # Retriever로 변환
+    retriever = vectorstore.as_retriever(
+        search_type="similarity",
+        search_kwargs={"k": k}
+    )
 
-            # 결과 변환
-            query_results = []
-            for hit in search_results:
-                payload = hit.payload
-                query_results.append(SearchResult(
-                    chunk_id=payload.get("chunk_id"),
-                    page_id=payload.get("page_id"),
-                    text=payload.get("text"),
-                    combined_text=payload.get("combined_text"),
-                    page_title=payload.get("page_title"),
-                    section_title=payload.get("section_title"),
-                    section_path=payload.get("section_path"),
-                    score=float(hit.score),
-                    has_image=payload.get("has_image", False),
-                    image_descriptions=payload.get("image_descriptions", []),
-                    properties=payload.get("properties", {})
-                ))
+    return retriever
 
-            results.append(query_results)
 
-        return results
+if __name__ == "__main__":
+    # 테스트
+    print("🔍 Dense Retriever 테스트")
+    print("=" * 60)
 
-    @property
-    def name(self) -> str:
-        """리트리버 이름 반환"""
-        return "Dense_Vector"
+    # Retriever 생성
+    retriever = get_dense_retriever(k=3)
 
-    def get_info(self) -> Dict[str, Any]:
-        """리트리버 정보 반환"""
-        info = super().get_info()
-        info.update({
-            "embedder": str(type(self.embedder).__name__)
-        })
-        return info
+    # 테스트 쿼리
+    test_queries = [
+        "RAG 시스템은 어떻게 동작하나요?",
+        "임베딩 모델에 대해 알려주세요",
+        "벡터 데이터베이스란 무엇인가요?"
+    ]
+
+    for query in test_queries:
+        print(f"\n📝 Query: {query}")
+        print("-" * 60)
+
+        results = retriever.invoke(query)
+
+        for i, doc in enumerate(results, 1):
+            print(f"\n[{i}] {doc.metadata.get('page_title', 'Unknown')}")
+            print(f"    Section: {doc.metadata.get('section_title', 'N/A')}")
+            print(f"    Content: {doc.page_content[:200]}...")
+
+    print("\n" + "=" * 60)
+    print("✅ Dense Retriever 테스트 완료")
