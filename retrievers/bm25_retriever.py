@@ -28,9 +28,15 @@ def load_documents_from_qdrant() -> List[Document]:
 
         documents = []
         for point in scroll_result[0]:
-            # payload 구조: {"page_content": "...", "metadata": {...}}
+            # payload에서 직접 필드 가져오기 (page_content가 실제 content)
             page_content = point.payload.get("page_content", "")
+
+            # metadata는 payload의 metadata 필드에 중첩되어 있음
             metadata_dict = point.payload.get("metadata", {})
+
+            # 빈 문서는 건너뛰기
+            if not page_content or not page_content.strip():
+                continue
 
             # metadata 추출
             metadata = {

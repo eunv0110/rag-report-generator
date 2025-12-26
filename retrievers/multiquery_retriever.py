@@ -14,6 +14,7 @@ from typing import List, Optional, Dict, Any
 import os
 from config.settings import AZURE_AI_CREDENTIAL, AZURE_AI_ENDPOINT
 from retrievers.dense_retriever import get_dense_retriever
+from prompts.prompt_manager import PromptManager
 
 
 class MultiQueryRetriever(BaseRetriever):
@@ -77,17 +78,13 @@ class MultiQueryRetriever(BaseRetriever):
         Returns:
             확장된 쿼리 리스트 (원본 포함)
         """
-        prompt = f"""당신은 정보 검색 전문가입니다. 주어진 질문에 대해 다양한 관점에서 {self.num_queries - 1}개의 유사한 질문을 생성하세요.
-
-원본 질문: {query}
-
-요구사항:
-1. 각 질문은 원본 질문과 같은 의도를 가져야 합니다
-2. 서로 다른 표현, 키워드, 관점을 사용하세요
-3. 각 질문은 한 줄로 작성하세요
-4. 번호나 특수 기호 없이 질문만 작성하세요
-
-생성된 질문들 (각 줄에 하나씩):"""
+        # 프롬프트 템플릿 로드
+        prompt_manager = PromptManager()
+        prompt = prompt_manager.format_prompt(
+            "multiquery.txt",
+            num_queries=self.num_queries - 1,
+            query=query
+        )
 
         try:
             model = init_chat_model(
