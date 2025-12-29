@@ -9,3 +9,5 @@ scripts/_backup_old_qa_scripts/
 notion_images/
 retrievers_legacy/
 logs/
+report_generator/data
+report_generator/results

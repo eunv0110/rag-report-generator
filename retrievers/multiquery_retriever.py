@@ -81,7 +81,7 @@ class MultiQueryRetriever(BaseRetriever):
         # 프롬프트 템플릿 로드
         prompt_manager = PromptManager()
         prompt = prompt_manager.format_prompt(
-            "multiquery.txt",
+            "service/multiquery.txt",
             num_queries=self.num_queries - 1,
             query=query
         )

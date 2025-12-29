@@ -202,6 +202,61 @@ def get_week_of_month(month: int, week_num: int, year: Optional[int] = None) -> 
     return (start_iso, end_iso)
 
 
+def extract_date_filter_from_question(question: str) -> Optional[Tuple[str, str]]:
+    """
+    질문에서 날짜 관련 표현을 추출하여 날짜 필터 생성
+
+    Args:
+        question: 질문 텍스트
+
+    Returns:
+        (start_date, end_date) 튜플 또는 None
+
+    Examples:
+        >>> extract_date_filter_from_question("9월 첫째주 주요 업무 내용을 요약해줘")
+        ('2025-09-01T00:00:00.000Z', '2025-09-07T23:59:59.999Z')
+
+        >>> extract_date_filter_from_question("이번 주 일정 알려줘")
+        ('2025-12-23T00:00:00.000Z', '2025-12-29T23:59:59.999Z')
+    """
+    # 날짜 관련 패턴 정의 (우선순위 순서대로)
+    patterns = [
+        # "N월 N주차" 패턴
+        (r'(\d{1,2})월\s*(\d{1})주차', lambda m: f"{m.group(1)}월 {m.group(2)}주차"),
+        # "N월 첫째주/둘째주/셋째주/넷째주" 패턴
+        (r'(\d{1,2})월\s*(첫째주|둘째주|셋째주|넷째주|다섯째주)', lambda m: f"{m.group(1)}월 {m.group(2)}"),
+        # "N월" 패턴
+        (r'(\d{1,2})월', lambda m: f"{m.group(1)}월"),
+        # "이번 주/이번주" 패턴
+        (r'이번\s*주', lambda m: "이번 주"),
+        # "이번 달/이번달" 패턴
+        (r'이번\s*달', lambda m: "이번 달"),
+        # "지난 주/지난주" 패턴
+        (r'지난\s*주', lambda m: "지난 주"),
+        # "지난 달/지난달" 패턴
+        (r'지난\s*달', lambda m: "지난 달"),
+        # "최근 N주/N주간" 패턴
+        (r'최근\s*(\d{1,2})\s*주', lambda m: f"최근 {m.group(1)}주"),
+        (r'(\d{1,2})\s*주간', lambda m: f"최근 {m.group(1)}주"),
+    ]
+
+    # 각 패턴을 순서대로 확인
+    for pattern, formatter in patterns:
+        match = re.search(pattern, question)
+        if match:
+            date_str = formatter(match)
+            try:
+                # parse_date_range를 사용해 날짜 범위로 변환
+                date_range = parse_date_range(date_input=date_str)
+                if date_range:
+                    return date_range
+            except Exception as e:
+                print(f"⚠️ 날짜 파싱 실패 ('{date_str}'): {e}")
+                continue
+
+    return None
+
+
 def parse_with_llm(date_input: str) -> Optional[Tuple[str, str]]:
     """
     LLM을 사용하여 자연어 날짜를 파싱합니다.
