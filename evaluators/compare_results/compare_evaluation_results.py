@@ -19,12 +19,21 @@ import json
 # ====================================================================
 # 데이터 경로 설정 (여기를 수정하세요)
 # ====================================================================
-FILE1_PATH = "/home/work/rag/Project/rag-report-generator/data/langfuse/qwen/eval_rrf_multiquery_rrf_multiquery_20251226_qwen_v3.csv"
-FILE2_PATH = "/home/work/rag/Project/rag-report-generator/data/langfuse/qwen/stage4.csv"
-FILE3_PATH = "/home/work/rag/Project/rag-report-generator/data/langfuse/qwen/eval_rrf_multiquery_longcontext_rrf_multiquery_longcontext_20251226_qwen_v3.csv"
-FILE4_PATH = "/home/work/rag/Project/rag-report-generator/data/langfuse/qwen/eval_ensemble_rrf_ensemble_rrf_20251226_qwen_v3.csv"
+# 처리할 폴더 리스트
+FOLDER_PATHS = [
+    "/home/work/rag/Project/rag-report-generator/data/final/bge_m3_rrf_ensemble",
+    "/home/work/rag/Project/rag-report-generator/data/final/bge_m3_rrf_multiquery_lc",
+    "/home/work/rag/Project/rag-report-generator/data/final/gemini_rrf_multiquery",
+    "/home/work/rag/Project/rag-report-generator/data/final/openai_rrf_lc_time",
+    "/home/work/rag/Project/rag-report-generator/data/final/openai_rrf_multiquery",
+    "/home/work/rag/Project/rag-report-generator/data/final/openai_rrf_multiquery_lc",
+    "/home/work/rag/Project/rag-report-generator/data/final/qwen_rrf_ensemble",
+    "/home/work/rag/Project/rag-report-generator/data/final/qwen_rrf_multiquery_lc",
+    "/home/work/rag/Project/rag-report-generator/data/final/upstage_rrf_ensemble",
+    "/home/work/rag/Project/rag-report-generator/data/final/upstage_rrf_multiquery_lc",
+]
 
-OUTPUT_PATH = None  # 결과를 JSON으로 저장하려면 경로 지정 (예: "results/comparison.json")
+OUTPUT_PATH = "/home/work/rag/Project/rag-report-generator/data/final/comparison_results/comparison.json"  # 결과를 JSON으로 저장
 
 
 def load_csv_data(csv_path: str) -> pd.DataFrame:
@@ -170,7 +179,7 @@ def compare_four_files(
     result2: Dict[str, Any],
     result3: Dict[str, Any],
     result4: Dict[str, Any]
-) -> None:
+) -> Dict[str, Any]:
     """
     4개 파일의 결과를 한 번에 비교 및 출력
 
@@ -179,8 +188,12 @@ def compare_four_files(
         result2: 두 번째 파일 분석 결과
         result3: 세 번째 파일 분석 결과
         result4: 네 번째 파일 분석 결과
+
+    Returns:
+        비교 결과 딕셔너리
     """
     results = [result1, result2, result3, result4]
+    comparison_data = {}
 
     print("\n" + "=" * 150)
     print("🏆 4개 파일 비교 결과")
@@ -192,11 +205,19 @@ def compare_four_files(
     print(f"{'총 Trace 수':<30} {result1['total_traces']:<28} {result2['total_traces']:<28} {result3['total_traces']:<28} {result4['total_traces']:<28}")
     print(f"{'총 평가 항목 수':<30} {result1['total_evaluations']:<28} {result2['total_evaluations']:<28} {result3['total_evaluations']:<28} {result4['total_evaluations']:<28}")
 
+    # 기본 통계 저장
+    comparison_data["basic_stats"] = {
+        "files": [r["file_name"] for r in results],
+        "total_traces": [r["total_traces"] for r in results],
+        "total_evaluations": [r["total_evaluations"] for r in results]
+    }
+
     # 메트릭별 비교
     all_metrics = set()
     for result in results:
         all_metrics.update(result["metrics"].keys())
 
+    metrics_comparison = {}
     if all_metrics:
         print("\n" + "=" * 150)
         print("📊 메트릭별 비교")
@@ -222,10 +243,12 @@ def compare_four_files(
             print(f"{'평균':<20} {avg_str[0]:<28} {avg_str[1]:<28} {avg_str[2]:<28} {avg_str[3]:<28}")
 
             # 최고 평균 찾기
+            best_file = None
             if any(stats_list):
                 max_avg = max(avgs)
                 max_idx = avgs.index(max_avg)
-                print(f"{'  → 최고 평균':<20} {results[max_idx]['file_name']} ({max_avg:.4f})")
+                best_file = results[max_idx]['file_name']
+                print(f"{'  → 최고 평균':<20} {best_file} ({max_avg:.4f})")
 
             # 중앙값
             medians = [stats.get('median', 0) for stats in stats_list]
@@ -247,6 +270,19 @@ def compare_four_files(
             max_str = [f"{m:.4f}" for m in maxs]
             print(f"{'최대값':<20} {max_str[0]:<28} {max_str[1]:<28} {max_str[2]:<28} {max_str[3]:<28}")
 
+            # 메트릭 비교 데이터 저장
+            metrics_comparison[metric_name] = {
+                "count": counts,
+                "avg": avgs,
+                "median": medians,
+                "std": stds,
+                "min": mins,
+                "max": maxs,
+                "best_file": best_file
+            }
+
+    comparison_data["metrics_comparison"] = metrics_comparison
+
     # Trace 비교
     all_traces = [set(result["trace_metrics"].keys()) for result in results]
     common_traces = all_traces[0].intersection(*all_traces[1:])
@@ -258,13 +294,19 @@ def compare_four_files(
     for i, result in enumerate(results, 1):
         print(f"{result['file_name']}: {len(all_traces[i-1])} Traces")
 
+    # Trace 비교 데이터 저장
+    comparison_data["trace_comparison"] = {
+        "common_traces_count": len(common_traces),
+        "traces_per_file": [len(traces) for traces in all_traces]
+    }
+
     # 공통 Trace에 대한 메트릭 순위 분석
+    ranking = {}
     if common_traces and all_metrics:
         print("\n" + "=" * 150)
         print("📈 공통 Trace 메트릭 순위 (평균 기준)")
         print("=" * 150)
 
-        ranking = {}
         for metric_name in sorted(all_metrics):
             metric_avgs = []
             for result in results:
@@ -282,6 +324,10 @@ def compare_four_files(
             print(f"\n{metric_name}:")
             for i, rank_data in enumerate(ranks, 1):
                 print(f"   {i}위: {rank_data['file_name']:<30} (평균: {rank_data['avg']:.4f})")
+
+    comparison_data["ranking"] = ranking
+
+    return comparison_data
 
 
 def compare_two_files(
@@ -398,66 +444,99 @@ def compare_two_files(
                 print(f"   동일: {unchanged} ({unchanged/len(common_traces)*100:.1f}%)")
 
 
+def get_csv_files_from_folder(folder_path: str) -> List[str]:
+    """
+    폴더에서 모든 CSV 파일 찾기
+
+    Args:
+        folder_path: 폴더 경로
+
+    Returns:
+        CSV 파일 경로 리스트 (top6, top8, top10, top12 순서로 정렬)
+    """
+    folder = Path(folder_path)
+    if not folder.exists():
+        print(f"⚠️  폴더가 존재하지 않습니다: {folder_path}")
+        return []
+
+    csv_files = sorted(folder.glob("*.csv"))
+
+    # top6, top8, top10, top12 순서로 정렬
+    def sort_key(file_path):
+        name = file_path.stem
+        if 'top6' in name:
+            return 0
+        elif 'top8' in name:
+            return 1
+        elif 'top10' in name:
+            return 2
+        elif 'top12' in name:
+            return 3
+        else:
+            return 4
+
+    csv_files = sorted(csv_files, key=sort_key)
+
+    return [str(f) for f in csv_files]
+
+
 def main():
     """메인 함수"""
-    # 스크립트 상단의 설정 사용
-    file1_path = FILE1_PATH
-    file2_path = FILE2_PATH
-    file3_path = FILE3_PATH
-    file4_path = FILE4_PATH
     output_path = OUTPUT_PATH
+    all_folder_results = {}  # 모든 폴더의 비교 결과를 저장
 
-    # CSV 파일 로드
-    df1 = load_csv_data(file1_path)
-    df2 = load_csv_data(file2_path)
-    df3 = load_csv_data(file3_path)
-    df4 = load_csv_data(file4_path)
+    # 각 폴더 처리
+    for folder_path in FOLDER_PATHS:
+        folder_name = Path(folder_path).name
+        print("\n" + "=" * 150)
+        print(f"🗂️  폴더 처리 중: {folder_name}")
+        print("=" * 150)
 
-    # 각 파일 분석
-    result1 = analyze_single_file(df1, Path(file1_path).name)
-    result2 = analyze_single_file(df2, Path(file2_path).name)
-    result3 = analyze_single_file(df3, Path(file3_path).name)
-    result4 = analyze_single_file(df4, Path(file4_path).name)
+        # 폴더에서 CSV 파일 찾기
+        csv_files = get_csv_files_from_folder(folder_path)
 
-    # 4개 파일 비교
-    compare_four_files(result1, result2, result3, result4)
+        if len(csv_files) != 4:
+            print(f"⚠️  {len(csv_files)}개의 CSV 파일을 찾았습니다. 4개가 필요합니다.")
+            print(f"   찾은 파일들: {[Path(f).name for f in csv_files]}")
+            continue
 
-    # 결과 저장 (선택적)
-    if output_path:
+        # CSV 파일 로드
+        dfs = []
+        for csv_file in csv_files:
+            try:
+                df = load_csv_data(csv_file)
+                dfs.append(df)
+            except Exception as e:
+                print(f"❌ 파일 로드 실패: {csv_file}")
+                print(f"   에러: {e}")
+                break
+
+        if len(dfs) != 4:
+            print(f"⚠️  파일 로드 중 오류가 발생했습니다.")
+            continue
+
+        # 각 파일 분석
+        results = []
+        for i, (df, csv_file) in enumerate(zip(dfs, csv_files)):
+            result = analyze_single_file(df, Path(csv_file).name)
+            results.append(result)
+
+        # 4개 파일 비교 (비교 결과 반환받음)
+        comparison_result = compare_four_files(results[0], results[1], results[2], results[3])
+
+        # 폴더별 결과 저장
+        all_folder_results[folder_name] = comparison_result
+
+    # 모든 폴더의 비교 결과를 하나의 JSON 파일로 저장
+    if output_path and all_folder_results:
         output_path_obj = Path(output_path)
         output_path_obj.parent.mkdir(parents=True, exist_ok=True)
 
-        save_data = {
-            "file1": {
-                "name": result1["file_name"],
-                "total_traces": result1["total_traces"],
-                "total_evaluations": result1["total_evaluations"],
-                "metrics": result1["metrics"]
-            },
-            "file2": {
-                "name": result2["file_name"],
-                "total_traces": result2["total_traces"],
-                "total_evaluations": result2["total_evaluations"],
-                "metrics": result2["metrics"]
-            },
-            "file3": {
-                "name": result3["file_name"],
-                "total_traces": result3["total_traces"],
-                "total_evaluations": result3["total_evaluations"],
-                "metrics": result3["metrics"]
-            },
-            "file4": {
-                "name": result4["file_name"],
-                "total_traces": result4["total_traces"],
-                "total_evaluations": result4["total_evaluations"],
-                "metrics": result4["metrics"]
-            }
-        }
-
         with open(output_path_obj, "w", encoding="utf-8") as f:
-            json.dump(save_data, f, indent=2, ensure_ascii=False, default=str)
+            json.dump(all_folder_results, f, indent=2, ensure_ascii=False, default=str)
 
-        print(f"\n💾 결과 저장: {output_path_obj}")
+        print(f"\n💾 전체 비교 결과 저장: {output_path_obj}")
+        print(f"   총 {len(all_folder_results)}개 폴더의 결과가 저장되었습니다.")
 
 
 if __name__ == "__main__":

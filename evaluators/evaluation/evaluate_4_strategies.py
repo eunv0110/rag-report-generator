@@ -22,25 +22,25 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import json
 import time
-import os
 from datetime import datetime
-from typing import List, Dict, Any, Optional
-from qdrant_client import QdrantClient
-from langchain.chat_models import init_chat_model
+from typing import List, Dict, Any
 
-from config.settings import (
-    QDRANT_PATH,
-    AZURE_AI_CREDENTIAL,
-    AZURE_AI_ENDPOINT,
-)
-from retrievers.ensemble_retriever import get_ensemble_retriever
-from retrievers.multiquery_retriever import get_multiquery_retriever
-from retrievers.longcontext_retriever import get_longcontext_retriever
-from retrievers.timeweighted_retriever import get_time_weighted_retriever
 from utils.langfuse_utils import get_langfuse_client
 from models.embeddings.factory import get_embedder
+from utils.common_utils import (
+    load_prompt,
+    load_evaluation_dataset,
+    generate_llm_answer,
+    create_trace_and_generation,
+    add_retrieval_quality_score,
+    save_embedding_cache
+)
+from utils.retriever_factory import create_strategy_retriever
 
 # 상수 정의
 DEFAULT_DATASET_PATH = "/home/work/rag/Project/rag-report-generator/data/evaluation/merged_qa_dataset.json"
@@ -49,154 +49,11 @@ DEFAULT_TEMPERATURE = 0.1
 DEFAULT_MAX_TOKENS = 500
 DEFAULT_TOP_K = 10
 
-SYSTEM_PROMPT_FILE = "prompts/templates/evaluation/system_prompt.txt"
-ANSWER_PROMPT_FILE = "prompts/templates/evaluation/answer_generation_prompt.txt"
-
-
-def load_prompt(prompt_file: str) -> str:
-    """프롬프트 템플릿 로드"""
-    prompt_path = Path(__file__).parent.parent / prompt_file
-    if not prompt_path.exists():
-        raise FileNotFoundError(f"프롬프트 파일을 찾을 수 없습니다: {prompt_path}")
-
-    with open(prompt_path, "r", encoding="utf-8") as f:
-        return f.read().strip()
-
-
-def load_evaluation_dataset(file_path: str) -> List[Dict[str, Any]]:
-    """평가용 데이터셋 로드"""
-    with open(file_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-
-def generate_llm_answer(question: str, contexts: List[str]) -> str:
-    """LLM API를 호출하여 답변 생성"""
-    if not AZURE_AI_CREDENTIAL or not AZURE_AI_ENDPOINT:
-        return "Azure OpenAI 설정이 올바르지 않습니다. .env 파일을 확인하세요."
-
-    os.environ['AZURE_AI_CREDENTIAL'] = AZURE_AI_CREDENTIAL
-    os.environ['AZURE_AI_ENDPOINT'] = AZURE_AI_ENDPOINT
-
-    answer_prompt_template = load_prompt(ANSWER_PROMPT_FILE)
-    context_text = "\n\n".join(contexts[:DEFAULT_NUM_CONTEXTS_FOR_ANSWER]) if contexts else "관련 문서를 찾을 수 없습니다."
-    prompt = answer_prompt_template.replace("{{context}}", context_text).replace("{{question}}", question)
-
-    try:
-        model = init_chat_model(
-            "azure_ai:gpt-4.1",
-            temperature=DEFAULT_TEMPERATURE,
-            max_completion_tokens=DEFAULT_MAX_TOKENS
-        )
-        response = model.invoke(prompt)
-        return response.content
-    except Exception as e:
-        error_msg = f"답변 생성 실패: {str(e)}"
-        print(f"  ⚠️ LLM API 호출 실패: {e}")
-        return error_msg
-
 
 def generate_version_tag(retriever_name: str, version: str = "v1") -> str:
     """버전 태그 생성"""
     date_str = datetime.now().strftime("%Y%m%d")
     return f"{retriever_name}_{date_str}_{version}"
-
-
-def create_trace_and_generation(
-    langfuse,
-    retriever_name: str,
-    question: str,
-    contexts: List[str],
-    answer: str,
-    ground_truth: str,
-    context_metadata: List[Dict],
-    item_metadata: Dict,
-    total_time: float,
-    idx: int,
-    context_page_id: Optional[str] = None,
-    version_tag: str = "v1",
-    retriever_tags: List[str] = None
-) -> str:
-    """Langfuse Trace와 Generation 생성"""
-    context_text = "\n\n---\n\n".join(contexts) if contexts else ""
-
-    if retriever_tags is None:
-        retriever_tags = []
-
-    all_tags = [
-        f"{retriever_name}_{version_tag}",
-        version_tag,
-        "evaluation"
-    ] + retriever_tags
-
-    with langfuse.start_as_current_observation(
-        as_type='generation',
-        name=f"generation_{retriever_name}_{version_tag}",
-        model="gpt-4.1",
-        input={
-            "question": question,
-            "context": context_text
-        },
-        output={
-            "answer": answer
-        },
-        metadata={
-            "ground_truth": ground_truth,
-            "contexts": contexts,
-            "context_metadata": context_metadata,
-            "retriever_type": retriever_name,
-            "version": version_tag,
-            "retriever_tags": retriever_tags
-        }
-    ) as generation:
-        trace_id = generation.trace_id
-
-        langfuse.update_current_trace(
-            name=f"eval_{retriever_name}_{version_tag}_q{idx}",
-            tags=all_tags,
-            input={
-                "question": question,
-                "context": context_text
-            },
-            output={
-                "answer": answer
-            },
-            metadata={
-                "retriever": retriever_name,
-                "version": version_tag,
-                "total_time_ms": total_time * 1000,
-                "num_retrieved_contexts": len(contexts),
-                "context_page_id": context_page_id,
-                "question_id": idx,
-                "category": item_metadata.get("category", "unknown"),
-                "difficulty": item_metadata.get("difficulty", "unknown"),
-                "retriever_components": retriever_tags
-            }
-        )
-
-    print(f"\n[DEBUG] Trace {idx}:")
-    print(f"  - ID: {trace_id}")
-    print(f"  - Question: {question[:50]}...")
-    print(f"  - Context length: {len(context_text)} chars")
-    print(f"  - Answer length: {len(answer)} chars")
-
-    return trace_id
-
-
-def add_retrieval_quality_score(langfuse, trace_id: str, context_metadata: List[Dict]):
-    """검색 품질 스코어 추가"""
-    if not context_metadata:
-        return
-
-    # metadata에 score가 있는 경우에만 계산
-    scores = [m.get("score") for m in context_metadata if m.get("score") is not None]
-    if scores:
-        avg_score = sum(scores) / len(scores)
-        langfuse.create_score(
-            trace_id=trace_id,
-            name="retrieval_quality",
-            value=avg_score,
-            comment=f"Average retrieval score from {len(scores)} contexts"
-        )
 
 
 def evaluate_single_query(
@@ -207,7 +64,8 @@ def evaluate_single_query(
     idx: int,
     top_k: int,
     base_version: str = "v1",
-    retriever_tags: List[str] = None
+    retriever_tags: List[str] = None,
+    prompt_version: int = 5
 ) -> Dict[str, Any]:
     """단일 쿼리 평가"""
     question = item["question"]
@@ -238,8 +96,21 @@ def evaluate_single_query(
         print(f"  ⚠️ [{idx}] No contexts found for question!")
         contexts = ["검색 결과가 없습니다."]
 
+    # 답변 생성 프롬프트 로드
+    answer_prompt_file = f"prompts/templates/evaluation/weekly_report/answer_generation_prompt_ver{prompt_version}.txt"
+    answer_prompt_template = load_prompt(answer_prompt_file)
+    system_prompt = ""  # 시스템 프롬프트는 answer_generation_prompt에 포함되어 있음
+
     # LLM 답변 생성
-    answer = generate_llm_answer(question, contexts)
+    answer = generate_llm_answer(
+        question=question,
+        contexts=contexts,
+        system_prompt=system_prompt,
+        answer_generation_prompt=answer_prompt_template,
+        num_contexts=DEFAULT_NUM_CONTEXTS_FOR_ANSWER,
+        temperature=DEFAULT_TEMPERATURE,
+        max_tokens=DEFAULT_MAX_TOKENS
+    )
 
     if not answer or answer.startswith("답변 생성 실패") or answer.startswith("Azure OpenAI 설정"):
         print(f"  ⚠️ [{idx}] LLM answer generation failed!")
@@ -249,6 +120,7 @@ def evaluate_single_query(
     total_time = time.time() - start_time
 
     # Langfuse Trace & Generation
+    additional_metadata = {"context_page_id": context_page_id}
     trace_id = create_trace_and_generation(
         langfuse=langfuse,
         retriever_name=retriever_name,
@@ -260,9 +132,9 @@ def evaluate_single_query(
         item_metadata=item_metadata,
         total_time=total_time,
         idx=idx,
-        context_page_id=context_page_id,
         version_tag=version_tag,
-        retriever_tags=retriever_tags
+        retriever_tags=retriever_tags,
+        additional_metadata=additional_metadata
     )
 
     # 검색 품질 스코어 추가
@@ -287,7 +159,8 @@ def evaluate_retriever(
     langfuse,
     top_k: int = DEFAULT_TOP_K,
     base_version: str = "v1",
-    retriever_tags: List[str] = None
+    retriever_tags: List[str] = None,
+    prompt_version: int = 5
 ) -> Dict[str, Any]:
     """리트리버 평가"""
     print(f"\n{'=' * 60}")
@@ -309,19 +182,15 @@ def evaluate_retriever(
             idx=idx,
             top_k=top_k,
             base_version=base_version,
-            retriever_tags=retriever_tags
+            retriever_tags=retriever_tags,
+            prompt_version=prompt_version
         )
 
         stats["evaluations"].append(eval_result)
         stats["total_time"] += eval_result["time"]
 
-        # 각 질문 평가 후 캐시 저장 (중단되어도 캐시 보존)
-        try:
-            embedder = get_embedder()
-            if hasattr(embedder, 'use_cache') and embedder.use_cache and embedder.cache:
-                embedder.cache.save()
-        except:
-            pass  # 캐시 저장 실패는 무시 (평가 진행에 영향 없음)
+        # 각 질문 평가 후 캐시 저장
+        save_embedding_cache()
 
     stats["avg_time"] = stats["total_time"] / stats["total_queries"]
     stats["avg_contexts"] = sum(e["num_contexts"] for e in stats["evaluations"]) / stats["total_queries"]
@@ -329,63 +198,6 @@ def evaluate_retriever(
     return stats
 
 
-def create_strategy_retriever(strategy_num: int, top_k: int = 10):
-    """
-    전략별 리트리버 생성
-
-    Returns:
-        (retriever, retriever_name, retriever_tags)
-    """
-    if strategy_num == 1:
-        # Strategy 1: RRF (Baseline)
-        retriever = get_ensemble_retriever(k=top_k)
-        retriever_name = "ensemble_rrf"
-        retriever_tags = ["ensemble", "rrf", "bm25", "dense"]
-
-    elif strategy_num == 2:
-        # Strategy 2: RRF + MultiQuery
-        base_retriever = get_ensemble_retriever(k=top_k)
-        retriever = get_multiquery_retriever(
-            base_retriever=base_retriever,
-            num_queries=3,
-            k=top_k
-        )
-        retriever_name = "rrf_multiquery"
-        retriever_tags = ["multiquery", "ensemble", "rrf", "bm25", "dense"]
-
-    elif strategy_num == 3:
-        # Strategy 3: RRF + MultiQuery + LongContext
-        base_retriever = get_ensemble_retriever(k=top_k)
-        multiquery_retriever = get_multiquery_retriever(
-            base_retriever=base_retriever,
-            num_queries=3,
-            k=top_k
-        )
-        retriever = get_longcontext_retriever(
-            base_retriever=multiquery_retriever,
-            k=top_k
-        )
-        retriever_name = "rrf_multiquery_longcontext"
-        retriever_tags = ["longcontext", "multiquery", "ensemble", "rrf", "bm25", "dense"]
-
-    elif strategy_num == 4:
-        # Strategy 4: RRF + LongContext + TimeWeighted
-        # TimeWeighted를 먼저 적용
-        time_weighted = get_time_weighted_retriever(
-            decay_rate=0.01,
-            k=top_k
-        )
-        retriever = get_longcontext_retriever(
-            base_retriever=time_weighted,
-            k=top_k
-        )
-        retriever_name = "rrf_longcontext_timeweighted"
-        retriever_tags = ["longcontext", "time_weighted", "decay_0.01"]
-
-    else:
-        raise ValueError(f"알 수 없는 전략 번호: {strategy_num}")
-
-    return retriever, retriever_name, retriever_tags
 
 
 def run_evaluation(
@@ -393,7 +205,8 @@ def run_evaluation(
     dataset: str,
     top_k: int,
     version: str,
-    langfuse
+    langfuse,
+    prompt_version: int = 5
 ) -> bool:
     """단일 평가 전략 실행
 
@@ -403,6 +216,7 @@ def run_evaluation(
         top_k: Top-K 값
         version: 버전 태그
         langfuse: Langfuse 클라이언트
+        prompt_version: 프롬프트 버전 (2-6)
 
     Returns:
         성공 여부
@@ -438,11 +252,12 @@ def run_evaluation(
             langfuse=langfuse,
             top_k=top_k,
             base_version=version,
-            retriever_tags=retriever_tags
+            retriever_tags=retriever_tags,
+            prompt_version=prompt_version
         )
 
         # 결과 저장
-        output_file = Path(dataset).parent / f"{retriever_name}_evaluation_stats.json"
+        output_file = Path(dataset).parent / f"{retriever_name}_prompt_v{prompt_version}_evaluation_stats.json"
         save_result = {k: v for k, v in stats.items() if k != "evaluations"}
         save_result["num_evaluations"] = len(stats.get("evaluations", []))
         save_result["config"] = {
@@ -452,6 +267,7 @@ def run_evaluation(
             "retriever_tags": retriever_tags,
             "top_k": top_k,
             "version": version,
+            "prompt_version": prompt_version,
         }
 
         with open(output_file, 'w', encoding='utf-8') as f:
@@ -511,6 +327,14 @@ def main():
         help="버전 태그 (기본값: v1)"
     )
 
+    parser.add_argument(
+        "--prompt-version",
+        type=int,
+        choices=[2, 3, 4, 5, 6, 7],
+        default=5,
+        help="프롬프트 버전 (2-7, 기본값: 5)"
+    )
+
     args = parser.parse_args()
 
     # 시작 메시지
@@ -521,6 +345,7 @@ def main():
     print(f"   - Dataset: {args.dataset}")
     print(f"   - Top-K: {args.top_k}")
     print(f"   - Version: {args.version}")
+    print(f"   - Prompt Version: {args.prompt_version}")
     print(f"   - 평가할 전략: {args.strategies}")
 
     # Langfuse 클라이언트 초기화
@@ -537,7 +362,8 @@ def main():
             dataset=args.dataset,
             top_k=args.top_k,
             version=args.version,
-            langfuse=langfuse
+            langfuse=langfuse,
+            prompt_version=args.prompt_version
         )
         results[strategy_num] = success
 

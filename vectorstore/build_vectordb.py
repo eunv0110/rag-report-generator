@@ -33,7 +33,7 @@ def get_langchain_embeddings(embedder) -> Embeddings:
     """
     기존 embedder를 LangChain Embeddings로 래핑
 
-    Note: OpenAIEmbedder는 이미 Embeddings를 상속받으므로 그대로 반환
+    Note: OpenRouterEmbedder는 이미 Embeddings를 상속받으므로 그대로 반환
     """
     # embedder가 이미 Embeddings 인터페이스를 구현하고 있으면 그대로 반환
     if isinstance(embedder, Embeddings):
@@ -83,8 +83,15 @@ def chunks_to_documents(chunks) -> List[Document]:
 
         # properties가 있으면 추가
         if hasattr(chunk, 'properties') and chunk.properties:
-            props = {k: (v if isinstance(v, (str, int, float, bool, list)) else str(v))
-                    for k, v in chunk.properties.items()}
+            props = {}
+            for k, v in chunk.properties.items():
+                # 날짜 필드 처리: dict에서 start, end 추출
+                if k == "날짜" and isinstance(v, dict):
+                    props["날짜_start"] = v.get('start', '')
+                    props["날짜_end"] = v.get('end', '')
+                    props["날짜"] = v  # 원본도 유지
+                else:
+                    props[k] = v if isinstance(v, (str, int, float, bool, list, dict)) else str(v)
             metadata["properties"] = props
 
         # Document 생성
@@ -306,11 +313,49 @@ def main(force_recreate: bool = False, check_updates: bool = True, limit: int = 
             if trace:
                 chunking_span = trace.span(name="chunking")
 
-            all_chunks = []
-            for page in pages_to_index:
-                chunks = process_page_data(page, embedder, vision_model)
-                all_chunks.extend(chunks)
-                print(f"  {page.get('title', 'Untitled')}: {len(chunks)}개 청크")
+            # 청크 캐시 파일 경로
+            chunks_cache_file = DATA_DIR / f"chunks_cache_{DB_NAME}.pkl"
+
+            # 캐시된 청크가 있는지 확인
+            if chunks_cache_file.exists() and not force_recreate:
+                print(f"\n💾 캐시된 청크 로딩: {chunks_cache_file}")
+                import pickle
+                with open(chunks_cache_file, 'rb') as f:
+                    all_chunks = pickle.load(f)
+                print(f"✅ {len(all_chunks)}개 청크 로드 완료")
+            else:
+                # 청킹 수행
+                all_chunks = []
+
+                # 병렬 처리로 청킹 속도 향상
+                from concurrent.futures import ThreadPoolExecutor, as_completed
+                import os
+
+                max_workers = min(8, os.cpu_count() or 4)  # CPU 코어 수에 맞춰 조정
+                print(f"  병렬 처리 (workers: {max_workers})")
+
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    # 모든 페이지를 병렬로 처리
+                    future_to_page = {
+                        executor.submit(process_page_data, page, embedder, vision_model): page
+                        for page in pages_to_index
+                    }
+
+                    for future in as_completed(future_to_page):
+                        page = future_to_page[future]
+                        try:
+                            chunks = future.result()
+                            all_chunks.extend(chunks)
+                            print(f"  ✓ {page.get('title', 'Untitled')}: {len(chunks)}개 청크")
+                        except Exception as e:
+                            print(f"  ✗ {page.get('title', 'Untitled')}: 에러 - {e}")
+
+                # 청크를 캐시에 저장
+                print(f"\n💾 청크 캐싱: {chunks_cache_file}")
+                import pickle
+                with open(chunks_cache_file, 'wb') as f:
+                    pickle.dump(all_chunks, f)
+                print(f"✅ {len(all_chunks)}개 청크 저장 완료")
 
             if trace:
                 chunking_span.end(metadata={"total_chunks": len(all_chunks)})

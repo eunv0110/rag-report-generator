@@ -10,33 +10,97 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from langchain_community.retrievers import BM25Retriever
 from langchain_core.documents import Document
 from qdrant_client import QdrantClient
-from config.settings import QDRANT_PATH, QDRANT_COLLECTION
+from config.settings import QDRANT_COLLECTION, get_qdrant_path
+
+# 싱글톤 패턴: 문서 캐싱 (Qdrant lock 방지)
+_documents_cache = {}
 
 
-def load_documents_from_qdrant() -> List[Document]:
-    """Qdrant에서 모든 문서를 로드하여 LangChain Document로 변환"""
-    client = QdrantClient(path=QDRANT_PATH)
+def load_documents_from_qdrant(date_filter: tuple = None) -> List[Document]:
+    """
+    Qdrant에서 모든 문서를 로드하여 LangChain Document로 변환
+
+    Args:
+        date_filter: (start_date, end_date) 튜플 (ISO 형식)
+    """
+    # Qdrant 경로 동적 계산
+    qdrant_path = get_qdrant_path()
+
+    # 캐시 키에 date_filter 포함
+    cache_key = (qdrant_path, date_filter)
+
+    # 캐시 확인
+    if cache_key in _documents_cache:
+        return _documents_cache[cache_key]
+
+    client = QdrantClient(path=qdrant_path)
 
     try:
-        # 모든 포인트 가져오기
-        scroll_result = client.scroll(
-            collection_name=QDRANT_COLLECTION,
-            limit=10000,
-            with_payload=True,
-            with_vectors=False  # 벡터는 필요 없음
-        )
+        # scroll 파라미터 설정
+        scroll_params = {
+            "collection_name": QDRANT_COLLECTION,
+            "limit": 10000,
+            "with_payload": True,
+            "with_vectors": False  # 벡터는 필요 없음
+        }
+
+        # 모든 포인트 가져오기 (날짜 필터링은 Python에서 처리)
+        scroll_result = client.scroll(**scroll_params)
 
         documents = []
         for point in scroll_result[0]:
-            # payload에서 직접 필드 가져오기 (page_content가 실제 content)
-            page_content = point.payload.get("page_content", "")
+            # payload 구조 감지 (두 가지 형식 지원)
+            # 형식 1: metadata 필드에 중첩 (upstage 등)
+            # 형식 2: payload 최상위에 직접 저장 (openai-large 등)
 
-            # metadata는 payload의 metadata 필드에 중첩되어 있음
-            metadata_dict = point.payload.get("metadata", {})
+            # page_content 추출 (여러 필드명 시도)
+            page_content = (
+                point.payload.get("page_content") or
+                point.payload.get("combined_text") or
+                point.payload.get("text") or
+                ""
+            )
 
             # 빈 문서는 건너뛰기
             if not page_content or not page_content.strip():
                 continue
+
+            # metadata 추출 (두 가지 구조 지원)
+            if "metadata" in point.payload:
+                # 형식 1: metadata 필드에 중첩
+                metadata_dict = point.payload["metadata"]
+            else:
+                # 형식 2: payload 최상위에 직접 저장
+                metadata_dict = point.payload
+
+            # 날짜 필터링 (Python 레벨에서 처리)
+            if date_filter:
+                start_date, end_date = date_filter
+
+                # properties에서 날짜 추출
+                properties = metadata_dict.get("properties", {})
+
+                # 새로운 날짜_start 필드 우선 사용 (vectordb 재구축 후)
+                date_start = properties.get("날짜_start", "")
+
+                # 날짜_start 필드가 없으면 기존 방식 사용 (하위 호환성)
+                if not date_start:
+                    last_edited = properties.get("최종 편집 일시", "")
+                    created = properties.get("생성 일시", "")
+
+                    # 날짜 범위 체크
+                    in_range = False
+                    for date_str in [last_edited, created]:
+                        if date_str and start_date <= date_str <= end_date:
+                            in_range = True
+                            break
+                else:
+                    # 날짜_start 필드로 필터링 (권장)
+                    in_range = date_start and start_date <= date_start <= end_date
+
+                # 범위 밖이면 건너뛰기
+                if not in_range:
+                    continue
 
             # metadata 추출
             metadata = {
@@ -56,24 +120,35 @@ def load_documents_from_qdrant() -> List[Document]:
             )
             documents.append(doc)
 
+        # 캐시에 저장
+        _documents_cache[cache_key] = documents
+
         return documents
     finally:
         # client 명시적으로 닫기
         client.close()
 
 
-def get_bm25_retriever(k: int = 5) -> BM25Retriever:
+def get_bm25_retriever(k: int = 5, date_filter: tuple = None) -> BM25Retriever:
     """
     BM25 Retriever 생성
 
     Args:
         k: 반환할 문서 수
+        date_filter: (start_date, end_date) 튜플 (ISO 형식)
 
     Returns:
         BM25Retriever 인스턴스
     """
     # Qdrant에서 문서 로드
-    documents = load_documents_from_qdrant()
+    documents = load_documents_from_qdrant(date_filter=date_filter)
+
+    # 문서가 없는 경우 처리
+    if not documents:
+        print(f"⚠️ 날짜 필터({date_filter})에 해당하는 문서가 없습니다.")
+        # 빈 retriever 반환 (최소 1개의 더미 문서 필요)
+        from langchain_core.documents import Document
+        documents = [Document(page_content="", metadata={})]
 
     # BM25 Retriever 생성
     retriever = BM25Retriever.from_documents(documents)

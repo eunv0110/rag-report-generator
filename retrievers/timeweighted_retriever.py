@@ -14,9 +14,10 @@ from qdrant_client import QdrantClient
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import math
-from config.settings import QDRANT_PATH, QDRANT_COLLECTION
+import os
+from config.settings import QDRANT_COLLECTION, get_qdrant_path
 from models.embeddings.factory import get_embedder
-from retrievers.dense_retriever import get_langchain_embeddings
+from retrievers.dense_retriever import get_langchain_embeddings, _qdrant_client_cache
 
 
 class TimeWeightedRetriever(BaseRetriever):
@@ -247,7 +248,8 @@ def get_time_weighted_retriever(
     time_field: str = "날짜",
     alpha: float = 0.5,
     k: int = 5,
-    retrieve_k: int = None
+    retrieve_k: int = None,
+    use_singleton: bool = True
 ) -> TimeWeightedRetriever:
     """
     Time-Weighted Retriever 생성
@@ -258,6 +260,7 @@ def get_time_weighted_retriever(
         alpha: 유사도 점수 비중 (기본값: 0.5)
         k: 반환할 문서 수 (기본값: 5)
         retrieve_k: 재정렬 전 가져올 결과 개수 (기본값: k * 3)
+        use_singleton: True면 기존 client를 재사용 (Qdrant lock 방지) - 기본값 True
 
     Returns:
         TimeWeightedRetriever 인스턴스
@@ -266,8 +269,20 @@ def get_time_weighted_retriever(
     base_embedder = get_embedder()
     langchain_embeddings = get_langchain_embeddings(base_embedder)
 
-    # Qdrant client 생성
-    client = QdrantClient(path=QDRANT_PATH)
+    # Qdrant 경로 동적 계산 (현재 MODEL_PRESET 기반)
+    qdrant_path = get_qdrant_path()
+    model_preset = os.getenv("MODEL_PRESET", "default")
+
+    # Qdrant client 생성 (싱글톤 사용 시 캐시에서 재사용)
+    # 캐시 키에 embedding preset 포함 (각 preset마다 별도 클라이언트)
+    cache_key = f"{model_preset}_{qdrant_path}_{QDRANT_COLLECTION}"
+
+    if use_singleton and cache_key in _qdrant_client_cache:
+        client = _qdrant_client_cache[cache_key]
+    else:
+        client = QdrantClient(path=qdrant_path)
+        if use_singleton:
+            _qdrant_client_cache[cache_key] = client
 
     # Qdrant vectorstore 로드
     vectorstore = QdrantVectorStore(

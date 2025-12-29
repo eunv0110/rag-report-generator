@@ -3,7 +3,7 @@ import time
 from openai import OpenAI
 from langchain_core.embeddings import Embeddings
 
-class OpenAIEmbedder(Embeddings):
+class OpenRouterEmbedder(Embeddings):
     def __init__(
         self,
         model: str,
