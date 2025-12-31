@@ -1,0 +1,41 @@
+# Weekly Report 생성기 설정
+
+# 보고서 타입
+report_type: "weekly"
+
+# Retriever 설정
+retriever:
+  name: "bge_m3_rrf_ensemble"
+  display_name: "BGE-M3 + RRF Ensemble (Top 6)"
+  embedding: "bge-m3"
+  type: "rrf_ensemble"
+  top_k: 6
+  description: "Precision 완벽 + 빠른 속도"
+
+  # RRF Ensemble 설정
+  rrf:
+    bm25_weight: 0.5
+    dense_weight: 0.5
+
+# LLM 설정
+llm:
+  name: "gpt41"
+  display_name: "GPT-4.1"
+  model_id: "azure_ai:gpt-4.1"
+  description: "OpenAI GPT-4.1"
+
+  # Generation 파라미터
+  generation:
+    temperature: 0
+    max_completion_tokens: 1000
+
+# 데이터 경로 설정
+paths:
+  qdrant_lock: "/home/work/rag/Project/rag-report-generator/data/qdrant_data/baai-bge-m3/.lock"
+  prompts_base: "prompts/templates/service/weekly_report"
+
+# 기본 질문 (CLI에서 질문이 제공되지 않을 때 사용)
+default_questions:
+  - "9월 첫째주 주요 업무 내용을 요약해줘"
+  - "이번 달 주요 업무 내용을 요약해줘"
+  - "추천시스템과 관련해서 11월 첫째주 주요 업무 내용 요약해줘"

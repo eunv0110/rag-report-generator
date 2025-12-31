@@ -1,0 +1,59 @@
+# 사용 가능한 임베딩 모델 프리셋
+# .env 파일에서 MODEL_PRESET 환경변수로 선택 (예: MODEL_PRESET=upstage)
+embedding_presets:
+  openai-large:
+    provider: "openai"
+    model: "openai/text-embedding-3-large"
+    dimension: 3072
+    batch_size: 20
+    api_key_env: "OPENROUTER_API_KEY"
+    base_url: "https://openrouter.ai/api/v1"
+    db_name: "openai-large"
+
+  qwen:
+    provider: "openai"
+    model: "qwen/qwen3-embedding-4b"
+    dimension: 2560
+    batch_size: 20
+    api_key_env: "OPENROUTER_API_KEY"
+    base_url: "https://openrouter.ai/api/v1"
+    db_name: "qwen3-embedding-4b"
+
+  upstage:
+    provider: "upstage"
+    model: "solar-embedding-1-large-passage"
+    query_model: "solar-embedding-1-large-query"
+    dimension: 1024
+    batch_size: 20
+    api_key_env: "UPSTAGE_API_KEY"
+    base_url: "https://api.upstage.ai/v1/solar"
+    db_name: "upstage-solar-embedding"
+
+  bge-m3:
+    provider: "openai"
+    model: "baai/bge-m3"
+    dimension: 1024
+    batch_size: 20
+    api_key_env: "OPENROUTER_API_KEY"
+    base_url: "https://openrouter.ai/api/v1"
+    db_name: "baai-bge-m3"
+
+  gemini:
+    provider: "openai"
+    model: "google/gemini-embedding-001"
+    dimension: 3072
+    batch_size: 20
+    api_key_env: "OPENROUTER_API_KEY"
+    base_url: "https://openrouter.ai/api/v1"
+    db_name: "gemini-embedding-001"
+
+# 기본 프리셋 (MODEL_PRESET 환경변수가 없을 때 사용)
+default_preset: "upstage"
+
+vision:
+  provider: "gpt4"
+  model: "openai/gpt-4o"  
+  max_tokens: 300
+  api_key_env: "OPENROUTER_API_KEY" 
+  base_url: "https://openrouter.ai/api/v1"  
+  prompt_template: "vision/image_description.txt"
