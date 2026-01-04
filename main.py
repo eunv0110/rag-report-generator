@@ -1,6 +1,6 @@
-def main():
-    print("Hello from rag-report-generator!")
+#!/usr/bin/env python3
 
+from scripts.generate_report import main
 
 if __name__ == "__main__":
     main()
