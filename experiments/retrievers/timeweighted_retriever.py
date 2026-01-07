@@ -15,7 +15,13 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import math
 import os
-from config.settings import QDRANT_COLLECTION, get_qdrant_path
+from config.settings import (
+    QDRANT_COLLECTION,
+    QDRANT_URL,
+    QDRANT_USE_SERVER,
+    get_qdrant_path,
+    get_collection_name
+)
 from models.embeddings.factory import get_embedder
 from retrievers.dense_retriever import get_langchain_embeddings, _qdrant_client_cache
 

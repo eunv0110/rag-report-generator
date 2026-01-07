@@ -21,7 +21,7 @@ import json
 # ====================================================================
 # 처리할 폴더 리스트
 FOLDER_PATHS = [
-"/home/work/rag/Project/rag-report-generator/data/langfuse/reranker"
+"/home/work/rag/Project/rag-report-generator/data/langfuse/final2"
 ]
 
 OUTPUT_PATH = "/home/work/rag/Project/rag-report-generator/data/final/comparison_results/comparison.json"  # 결과를 JSON으로 저장

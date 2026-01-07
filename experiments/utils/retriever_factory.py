@@ -53,12 +53,13 @@ def create_retriever_from_config(
     # retriever_config에서 k 값 가져오기 (없으면 top_k 사용)
     k = retriever_config.get('k', top_k)
 
-    # 환경 변수로 임베딩 프리셋 설정
+    # 환경 변수로 임베딩 프리셋 설정 (병렬 실행 시 race condition 방지를 위해 제거하지 않음)
+    # 대신 각 retriever에 preset 파라미터를 직접 전달
     os.environ['MODEL_PRESET'] = embedding_preset
 
     if retriever_type == "rrf_multiquery_longcontext":
         # RRF + MultiQuery + LongContext
-        base_retriever = get_ensemble_retriever(k=k)
+        base_retriever = get_ensemble_retriever(k=k, preset=embedding_preset)
         multiquery_retriever = get_multiquery_retriever(
             base_retriever=base_retriever,
             num_queries=3,
@@ -72,12 +73,12 @@ def create_retriever_from_config(
 
     elif retriever_type == "rrf_ensemble":
         # RRF Ensemble
-        retriever = get_ensemble_retriever(k=k)
+        retriever = get_ensemble_retriever(k=k, preset=embedding_preset)
         retriever_tags = ["ensemble", "rrf", "bm25", "dense"]
 
     elif retriever_type == "rrf_multiquery":
         # RRF + MultiQuery
-        base_retriever = get_ensemble_retriever(k=k)
+        base_retriever = get_ensemble_retriever(k=k, preset=embedding_preset)
         retriever = get_multiquery_retriever(
             base_retriever=base_retriever,
             num_queries=3,

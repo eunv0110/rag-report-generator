@@ -43,9 +43,8 @@ def load_documents_from_qdrant(date_filter: tuple = None, preset: str = None) ->
     else:
         # 레거시: 로컬 파일 모드
         qdrant_path = get_qdrant_path()
-        cache_key = (qdrant_path, QDRANT_COLLECTION, date_filter)
+        cache_key = (qdrant_path, collection_name, date_filter)
         client = QdrantClient(path=qdrant_path)
-        collection_name = QDRANT_COLLECTION
 
     # 캐시 확인
     if cache_key in _documents_cache:

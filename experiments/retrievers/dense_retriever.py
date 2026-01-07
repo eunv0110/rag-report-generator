@@ -105,8 +105,7 @@ def get_dense_retriever(
     else:
         # 레거시: 로컬 파일 모드
         qdrant_path = get_qdrant_path()
-        cache_key = f"{model_preset}_{qdrant_path}_{QDRANT_COLLECTION}"
-        collection_name = QDRANT_COLLECTION
+        cache_key = f"{model_preset}_{qdrant_path}_{collection_name}"
 
         if use_singleton and cache_key in _qdrant_client_cache:
             client = _qdrant_client_cache[cache_key]
