@@ -1,6 +1,6 @@
-# Multimodal RAG-based Enterprise Report Automation System
+# Multimodal RAG-based Report Automation System
 
-기업 보고서 자동화를 위한 멀티모달 RAG 시스템 최적화 연구
+보고서 자동화를 위한 멀티모달 RAG 시스템 최적화 연구
 
 ## 목차
 
@@ -258,4 +258,5 @@ OpenAI + RRF MultiQuery (Top 8) + GPT-4.1
 2. **비용-품질 트레이드오프**: 작성 빈도를 고려한 LLM 선정 전략
 3. **평가 방식의 다양성**: 실무 관점(육안)과 객관적 지표(LLM-as-Judge) 병행 필요
 4. **모델 구조적 한계**: 장문 문서 환경에서의 Faithfulness 개선 한계
+
 
