@@ -1,0 +1,365 @@
+{
+  "summary": {
+    "dataset1": {
+      "name": "OpenAI RRF MultiQuery (Top 8)",
+      "total_cases": 210,
+      "score_distribution": {
+        "Context Precision": {
+          "count": 70,
+          "mean": 0.9857142857142858,
+          "std": 0.11952286093343938,
+          "min": 0.0,
+          "max": 1.0,
+          "q25": 1.0,
+          "median": 1.0,
+          "q75": 1.0,
+          "score_0": 1,
+          "score_0.5": 0,
+          "score_1.0": 69
+        },
+        "Context Recall": {
+          "count": 70,
+          "mean": 0.9857142857142858,
+          "std": 0.11952286093343938,
+          "min": 0.0,
+          "max": 1.0,
+          "q25": 1.0,
+          "median": 1.0,
+          "q75": 1.0,
+          "score_0": 1,
+          "score_0.5": 0,
+          "score_1.0": 69
+        },
+        "Faithfulness": {
+          "count": 70,
+          "mean": 0.7992857142857144,
+          "std": 0.23070353287892173,
+          "min": 0.0,
+          "max": 1.0,
+          "q25": 0.7,
+          "median": 0.8,
+          "q75": 1.0,
+          "score_0": 1,
+          "score_0.5": 9,
+          "score_1.0": 29
+        }
+      },
+      "bad_cases_summary": [
+        {
+          "metric": "Context Precision",
+          "count": 1,
+          "percentage": 1.4285714285714286,
+          "mean_score": 0.0
+        },
+        {
+          "metric": "Context Recall",
+          "count": 1,
+          "percentage": 1.4285714285714286,
+          "mean_score": 0.0
+        },
+        {
+          "metric": "Faithfulness",
+          "count": 10,
+          "percentage": 14.285714285714285,
+          "mean_score": 0.36
+        }
+      ],
+      "patterns": {
+        "dataset": "Dataset1",
+        "total_bad_cases": 10,
+        "query_analysis": {
+          "avg_length": 159.1,
+          "min_length": 43,
+          "max_length": 356,
+          "sample_queries": [
+            "The answer is an error about content filtering and does not address the question; the context about detection methods and results is not used in the answer.",
+            "\"ì² ë²_§¸ ë¬¸ì_  ê°ì§ __ ê¸°ë_ ____ __ ¬í___ __,  ë¬¸ì_  _ê° ë³µí___ë¡ ____ __. '__ ê¸°ë_ ì¶__' °ì_ ê²°í_ ë°©ì_ ë¶_¦¬ ¤ë_´ì_ __, ê³ ì¶__ YOLO ê¸°ì_ __ ë° ëª©ì_ ê°__ ë³__ ëª__ë¡ _´ì_ __.\"",
+            "\"Ragas ê¸°ë_¼ë_ __¸ì_ 46ê°_ ____ _ë¥ ì§___¤ë_ ë¬¸ì_  ê°ì§ _³´(__¸ì_ __, _ ì§__)ë¥ ¬í__ë¡ ë³µí___.\"",
+            "The first sentence describes a complex process (algorithmic selection of content based on user-item interactions and matrix factorization).",
+            "\"ë¬¸ì_ 1  ë¬¸ì___  ê°ì§ ì£¼ì_ë¥ ¬í__ë§, ¼ë¦¬__ë¡ °ê²°__ __ ë³µì_±ì ì¤__ _´ë_. HMMê³ EMA ê¸°ë_ __ ëª¨ë_ _¸¡ ëª¨ë_ ê°__ ____ __ ì£¼ì_ ____ê° ±ê³µ__ë¡ __ ì£¼ì_ê° __ __.\""
+          ]
+        }
+      }
+    },
+    "dataset2": {
+      "name": "BGE-M3 RRF Reranker (k=6)",
+      "total_cases": 219,
+      "score_distribution": {
+        "Context Precision": {
+          "count": 73,
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "q25": 1.0,
+          "median": 1.0,
+          "q75": 1.0,
+          "score_0": 0,
+          "score_0.5": 0,
+          "score_1.0": 73
+        },
+        "Context Recall": {
+          "count": 73,
+          "mean": 1.0,
+          "std": 0.0,
+          "min": 1.0,
+          "max": 1.0,
+          "q25": 1.0,
+          "median": 1.0,
+          "q75": 1.0,
+          "score_0": 0,
+          "score_0.5": 0,
+          "score_1.0": 73
+        },
+        "Faithfulness": {
+          "count": 73,
+          "mean": 0.813013698630137,
+          "std": 0.2426742497184403,
+          "min": 0.1,
+          "max": 1.0,
+          "q25": 0.7,
+          "median": 0.9,
+          "q75": 1.0,
+          "score_0": 0,
+          "score_0.5": 10,
+          "score_1.0": 35
+        }
+      },
+      "bad_cases_summary": [
+        {
+          "metric": "Faithfulness",
+          "count": 10,
+          "percentage": 13.698630136986301,
+          "mean_score": 0.31999999999999995
+        }
+      ],
+      "patterns": {
+        "dataset": "Dataset2",
+        "total_bad_cases": 10,
+        "query_analysis": {
+          "avg_length": 160.2,
+          "min_length": 69,
+          "max_length": 452,
+          "sample_queries": [
+            "\" ë¬¸ì_ ____ ëª©ì_ê³ ì¶__ ë°°ê²½ ¤ë__©°, ¨ì_ ê°__ ì¤__¼ë_ ____ ë¬¸ì_ ë³µí__ _.\"",
+            "This sentence introduces the title of the report but does not convey informational content needing simplification. The complexity is minimal.",
+            "ë³ ____ ê³µê³µAX °ì_°ì_ __ ¥ì_ê³ __ __ë¥ ëª©ì_¼ë_ ì¶____.  ë¬¸ì_  ê°__ ì£¼ì_  ê°__ __ë¡ êµ¬ì_ ¨ì_ ë¬¸ì_´ë_. ë³µì__ __.",
+            "\"The first sentence introduces the report title, which is a simple declarative statement.\"",
+            "\"ë³ ____ ¤ì_ __ __ AI ê¸°ë_¼ë_ ë¶____, __  ì£¼ì_ ê°_²´ ë° ë§¥ë_ _³´ë¥ __ ì¶____, ¼ì_ ê¶¤ë_Â·ê³ ë°©í_Â·ê³ __  ¤í_ì¸ ê²½ê¸° __ ¸ë __ ____ë¡ ë¶____ ê²__ ëª©ì_¼ë_ ì¶____µë_. ->  ë¬¸ì_ ê¸¸ê_ ë³µí___, ¤ì_ê³ ê°__ ë¶__  __: 1) ____ ëª©í_ ¤ì_ __ __ AI ê¸°ë_ ë¶__´ë_. 2) ____ __  ì£¼ì_ ê°_²´ _³´ë¥ __ ì¶____. 3) ____ __  ë§¥ë_ _³´ë¥ __ ì¶____. 4) ____ ¼ì_ ê¶¤ë_Â·ê³ ë°©í_Â·ê³ __  ¤í_ì¸ ê²½ê¸° __ __ ____ë¡ ë¶____. ê° ë¶__ ë¬¸ì_ ´í_ê° ½ë_. ë³µí_±ì_ __ ë¶__ê° __.\""
+          ]
+        }
+      }
+    },
+    "comparison": {
+      "dataset1_size": 210,
+      "dataset2_size": 219,
+      "common_metrics": [
+        "Faithfulness",
+        "Context Recall",
+        "Context Precision"
+      ],
+      "metric_comparison": {
+        "Faithfulness": {
+          "dataset1_mean": 0.7992857142857144,
+          "dataset2_mean": 0.813013698630137,
+          "dataset1_bad_cases": 10,
+          "dataset2_bad_cases": 10
+        },
+        "Context Recall": {
+          "dataset1_mean": 0.9857142857142858,
+          "dataset2_mean": 1.0,
+          "dataset1_bad_cases": 1,
+          "dataset2_bad_cases": 0
+        },
+        "Context Precision": {
+          "dataset1_mean": 0.9857142857142858,
+          "dataset2_mean": 1.0,
+          "dataset1_bad_cases": 1,
+          "dataset2_bad_cases": 0
+        }
+      }
+    }
+  },
+  "detailed_bad_cases": {
+    "dataset1": [
+      {
+        "dataset": "Dataset1",
+        "metric": "Context Precision",
+        "score": 0.0,
+        "traceId": "473b0d17894294571c3e7ca0f3ea9a02",
+        "traceName": "eval_openai_rrf_multiquery_executive_report_v1_q60",
+        "query": "The answer is an error about content filtering and does not address the question; the context about detection methods and results is not used in the answer."
+      },
+      {
+        "dataset": "Dataset1",
+        "metric": "Context Recall",
+        "score": 0.0,
+        "traceId": "473b0d17894294571c3e7ca0f3ea9a02",
+        "traceName": "eval_openai_rrf_multiquery_executive_report_v1_q60",
+        "query": "\" ë¬¸ì_ Azure OpenAI content management policy °ë_ __ __ë§____ __ ë° ê´ __ ë¬¸ì_ __ë¥ ¬í_ __ ë©__ì§ë¡, ë³¸ë¬¸ ì£¼ì_ì§ ë§¥ë_(ì¶__ __, ê°_²´ _, ë¬¼ë¦¬ AI ±ê³¼ ê´¨ë_ ´ì_)ê³ ì§____ ê´¨ì_ __.\""
+      },
+      {
+        "dataset": "Dataset1",
+        "metric": "Faithfulness",
+        "score": 0.0,
+        "traceId": "d63570894dd1fefc60e62623d8100a6b",
+        "traceName": "eval_openai_rrf_multiquery_executive_report_v1_q16",
+        "query": "Sentence is a headline and not a statement."
+      },
+      {
+        "dataset": "Dataset1",
+        "metric": "Faithfulness",
+        "score": 0.1,
+        "traceId": "473b0d17894294571c3e7ca0f3ea9a02",
+        "traceName": "eval_openai_rrf_multiquery_executive_report_v1_q60",
+        "query": "\"The first sentence is a content filter error message and does not contain a complex technical description. Its complexity is very low, and its main meaning can be stated simply.\""
+      },
+      {
+        "dataset": "Dataset1",
+        "metric": "Faithfulness",
+        "score": 0.3,
+        "traceId": "bc08fb1c483dec80f117da631e1f9b0d",
+        "traceName": "eval_openai_rrf_multiquery_executive_report_v1_q9",
+        "query": "\"The sentence contains technical terms and conveys multiple pieces of information in a complex way, so it must be broken down into simple statements without pronouns.\""
+      },
+      {
+        "dataset": "Dataset1",
+        "metric": "Faithfulness",
+        "score": 0.3,
+        "traceId": "d44669eedb1595616deabd84f66e79b8",
+        "traceName": "eval_openai_rrf_multiquery_executive_report_v1_q34",
+        "query": "\" ë¬¸ì_ __ RAG ì±__ ëª©í_ êµ¬ì_ ê¸°ë_ __ë¥ ___©°, ì£¼ì_ _³´ê° ëª¨ë_ ëª____ë¡ ¸ê___ __ ë³µì__ _. __´ì_ 'ê°____ __ë©' 'ê¸°ë_¼ë_ êµ¬ì___µë_'¼ë_ êµ¬ë¬¸ ì§___ë¡ ´í_ ê°¥í_.\""
+      },
+      {
+        "dataset": "Dataset1",
+        "metric": "Faithfulness",
+        "score": 0.4,
+        "traceId": "3f791899beb7bcf368750342fdee192e",
+        "traceName": "eval_openai_rrf_multiquery_executive_report_v1_q63",
+        "query": "\"ì² ë²_§¸ ë¬¸ì_  ê°ì§ __ ê¸°ë_ ____ __ ¬í___ __,  ë¬¸ì_  _ê° ë³µí___ë¡ ____ __. '__ ê¸°ë_ ì¶__' °ì_ ê²°í_ ë°©ì_ ë¶_¦¬ ¤ë_´ì_ __, ê³ ì¶__ YOLO ê¸°ì_ __ ë° ëª©ì_ ê°__ ë³__ ëª__ë¡ _´ì_ __.\""
+      },
+      {
+        "dataset": "Dataset1",
+        "metric": "Faithfulness",
+        "score": 0.5,
+        "traceId": "5785fecd507877f6f48a74e795e1bb18",
+        "traceName": "eval_openai_rrf_multiquery_executive_report_v1_q64",
+        "query": "The first sentence describes a complex process (algorithmic selection of content based on user-item interactions and matrix factorization)."
+      },
+      {
+        "dataset": "Dataset1",
+        "metric": "Faithfulness",
+        "score": 0.5,
+        "traceId": "b0a944e2d9b710bb9311835f094d67ef",
+        "traceName": "eval_openai_rrf_multiquery_executive_report_v1_q46",
+        "query": "\"This sentence provides an overview of the two main content recommendation system types as well as the application of advancement methods based on the system type. The sentence is moderately complex and combines three pieces of information. After decomposition, each type of system and associated improvements must be stated separately, avoiding pronouns.\""
+      },
+      {
+        "dataset": "Dataset1",
+        "metric": "Faithfulness",
+        "score": 0.5,
+        "traceId": "4d74f69d906577877b3c9d272fa4a01d",
+        "traceName": "eval_openai_rrf_multiquery_executive_report_v1_q54",
+        "query": "\"Ragas ê¸°ë_¼ë_ __¸ì_ 46ê°_ ____ _ë¥ ì§___¤ë_ ë¬¸ì_  ê°ì§ _³´(__¸ì_ __, _ ì§__)ë¥ ¬í__ë¡ ë³µí___.\""
+      },
+      {
+        "dataset": "Dataset1",
+        "metric": "Faithfulness",
+        "score": 0.5,
+        "traceId": "61840957f007568e87c916c3852daa32",
+        "traceName": "eval_openai_rrf_multiquery_executive_report_v1_q2",
+        "query": "\"ë¬¸ì_ 1  ë¬¸ì___  ê°ì§ ì£¼ì_ë¥ ¬í__ë§, ¼ë¦¬__ë¡ °ê²°__ __ ë³µì_±ì ì¤__ _´ë_. HMMê³ EMA ê¸°ë_ __ ëª¨ë_ _¸¡ ëª¨ë_ ê°__ ____ __ ì£¼ì_ ____ê° ±ê³µ__ë¡ __ ì£¼ì_ê° __ __.\""
+      },
+      {
+        "dataset": "Dataset1",
+        "metric": "Faithfulness",
+        "score": 0.5,
+        "traceId": "fd6c089c9d514a8215ac43de2f802c66",
+        "traceName": "eval_openai_rrf_multiquery_executive_report_v1_q55",
+        "query": "\" ë¬¸ì_ ë§_ _³´ë¥ ´ê_ __, ê° ì£¼ì_ ê¸°ì_ __ë³ ¤ë_ ëª__ __ __ë¯ë¡ ë³µì__ ì¤__ _´ë©°, ½ê_ ¨ì_ êµ¬ë¬¸¼ë_ ë¶_¦¬  __.\""
+      }
+    ],
+    "dataset2": [
+      {
+        "dataset": "Dataset2",
+        "metric": "Faithfulness",
+        "score": 0.1,
+        "traceId": "5d93e51469cc14d4502fd55411197b18",
+        "traceName": "eval_bge-m3-rrf-reranker-k6_v1_q18",
+        "query": "This sentence introduces the title of the report but does not convey informational content needing simplification. The complexity is minimal."
+      },
+      {
+        "dataset": "Dataset2",
+        "metric": "Faithfulness",
+        "score": 0.1,
+        "traceId": "74c7deb9632f29b95fa623f271c0ee9f",
+        "traceName": "eval_bge-m3-rrf-reranker-k6_v1_q16",
+        "query": "\"The first sentence introduces the report title, which is a simple declarative statement.\""
+      },
+      {
+        "dataset": "Dataset2",
+        "metric": "Faithfulness",
+        "score": 0.2,
+        "traceId": "649288fde670c2910d6dd50a3b6ba594",
+        "traceName": "eval_bge-m3-rrf-reranker-k6_v1_q32",
+        "query": "ë³ ____ ê³µê³µAX °ì_°ì_ __ ¥ì_ê³ __ __ë¥ ëª©ì_¼ë_ ì¶____.  ë¬¸ì_  ê°__ ì£¼ì_  ê°__ __ë¡ êµ¬ì_ ¨ì_ ë¬¸ì_´ë_. ë³µì__ __."
+      },
+      {
+        "dataset": "Dataset2",
+        "metric": "Faithfulness",
+        "score": 0.3,
+        "traceId": "996f98a61a35be04df38423e0b52f91d",
+        "traceName": "eval_bge-m3-rrf-reranker-k6_v1_q19",
+        "query": "\"ë³ ____ ¤ì_ __ __ AI ê¸°ë_¼ë_ ë¶____, __  ì£¼ì_ ê°_²´ ë° ë§¥ë_ _³´ë¥ __ ì¶____, ¼ì_ ê¶¤ë_Â·ê³ ë°©í_Â·ê³ __  ¤í_ì¸ ê²½ê¸° __ ¸ë __ ____ë¡ ë¶____ ê²__ ëª©ì_¼ë_ ì¶____µë_. ->  ë¬¸ì_ ê¸¸ê_ ë³µí___, ¤ì_ê³ ê°__ ë¶__  __: 1) ____ ëª©í_ ¤ì_ __ __ AI ê¸°ë_ ë¶__´ë_. 2) ____ __  ì£¼ì_ ê°_²´ _³´ë¥ __ ì¶____. 3) ____ __  ë§¥ë_ _³´ë¥ __ ì¶____. 4) ____ ¼ì_ ê¶¤ë_Â·ê³ ë°©í_Â·ê³ __  ¤í_ì¸ ê²½ê¸° __ __ ____ë¡ ë¶____. ê° ë¶__ ë¬¸ì_ ´í_ê° ½ë_. ë³µí_±ì_ __ ë¶__ê° __.\""
+      },
+      {
+        "dataset": "Dataset2",
+        "metric": "Faithfulness",
+        "score": 0.3,
+        "traceId": "f44939086879f1737175ddd26e1f9989",
+        "traceName": "eval_bge-m3-rrf-reranker-k6_v1_q57",
+        "query": "\" ë¬¸ì_ ____ ëª©í_ ëª©ì_  ë¬¸ì_¼ë_ ¤ë__©°, ê¸°ì_ ¸ë¬í_ __ ë³µì__ __.\""
+      },
+      {
+        "dataset": "Dataset2",
+        "metric": "Faithfulness",
+        "score": 0.4,
+        "traceId": "2f9ca2e28d8933af040eb330e0d44ec7",
+        "traceName": "eval_bge-m3-rrf-reranker-k6_v1_q38",
+        "query": "\" ë¬¸ì_ ____ ëª©ì_ê³ ì¶__ ë°°ê²½ ¤ë__©°, ¨ì_ ê°__ ì¤__¼ë_ ____ ë¬¸ì_ ë³µí__ _.\""
+      },
+      {
+        "dataset": "Dataset2",
+        "metric": "Faithfulness",
+        "score": 0.4,
+        "traceId": "e4875ac75c110aa3ec136536ad77847b",
+        "traceName": "eval_bge-m3-rrf-reranker-k6_v1_q34",
+        "query": "Sentence: 'ë³ ____ ëª©ì_ __ ê´ ì§__  ì¦____ê³ __ µë _³µ__ RAG(Retrieval-Augmented Generation) ê¸°ë_ ì±__ ê°____ ê²____.' contains one main idea and is straightforward after rephrasing without pronouns."
+      },
+      {
+        "dataset": "Dataset2",
+        "metric": "Faithfulness",
+        "score": 0.4,
+        "traceId": "cf691a9cd37792bf7ecf46c930498678",
+        "traceName": "eval_bge-m3-rrf-reranker-k6_v1_q44",
+        "query": "\"ì² ë²_§¸ ë¬¸ì_ ____ , ëª©ì_, ë°©ì_ ë³µí___ë¡ ¬í___ __ë©,  ê°ì§ ì£¼ì_ _³´(____ ì¶__ ë°°ê²½, ëª©ì_, ë¹__ ëª¨ë_, ë¶__ ë°©ì_)  ê°__ ´ì_ ¨ì_ __.\""
+      },
+      {
+        "dataset": "Dataset2",
+        "metric": "Faithfulness",
+        "score": 0.5,
+        "traceId": "d8a185d3687bca17f1f3472d9c11ce2e",
+        "traceName": "eval_bge-m3-rrf-reranker-k6_v1_q10",
+        "query": "\"ë³ ____ ëª©ì_ _²´ì½__ì¸(__ )  ë©_°ì_ ì¶__ ê°´ë_ë¥ ì²´ê___ë¡ ____, ì½__ì¸ ê²_·ì_ì²_·êë¦¬ì_ __  __ ___ °ì_ ì¶__ ë°  __¸ì_ë¥ _¦½__ ê²____.   ë¬¸ì_ ë³µí_ ëª©í_ë¥ ´ê_ __ë¯ë¡ ¬ë_ __ë¡ ë¶__  __.\""
+      },
+      {
+        "dataset": "Dataset2",
+        "metric": "Faithfulness",
+        "score": 0.5,
+        "traceId": "cd79963e77996abe9c024cbffcdfe2ab",
+        "traceName": "eval_bge-m3-rrf-reranker-k6_v1_q4",
+        "query": "The sentence introduces the objective of the project but consists of multiple concepts and can be broken down for clarity."
+      }
+    ]
+  }
+}

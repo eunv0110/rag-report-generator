@@ -1,0 +1,386 @@
+# 평가 설정 파일
+# 주간 보고서용 vs 임원 보고서용 리트리버 조합 평가
+
+# 공통 설정
+evaluation:
+  dataset_path: "data/evaluation/qa_dataset.json"
+  output_dir: "data/langfuse/evaluation_results"
+
+# 주간 보고서용 (운영팀) - Recall 우선
+weekly_report:
+  name: "주간 보고서 (운영팀)"
+  priority: ["recall", "precision", "faithfulness"]
+  system_prompt_path: "prompts/templates/service/weekly_report/system_prompt.txt"
+  answer_generation_prompt_path: "prompts/templates/service/weekly_report/answer_generation_prompt.txt"
+
+  # 평가할 리트리버 조합
+  retrievers:
+    - name: "upstage_rrf_multiquery_lc"
+      display_name: "Upstage + RRF + MultiQuery + LC"
+      embedding_preset: "upstage"
+      retriever_type: "rrf_multiquery_longcontext"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 1.00, R: 1.00"
+      expected_performance:
+        precision: 1.00
+        recall: 1.00
+
+    - name: "openai_rrf_multiquery_lc"
+      display_name: "OpenAI + RRF + MultiQuery + LC"
+      embedding_preset: "openai-large"
+      retriever_type: "rrf_multiquery_longcontext"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 1.00, R: 0.99"
+      expected_performance:
+        precision: 1.00
+        recall: 0.99
+
+    - name: "qwen_rrf_multiquery_lc"
+      display_name: "Qwen + RRF + MultiQuery + LC"
+      embedding_preset: "qwen"
+      retriever_type: "rrf_multiquery_longcontext"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 1.00, R: 0.97"
+      expected_performance:
+        precision: 1.00
+        recall: 0.97
+
+    - name: "bge_m3_rrf_ensemble"
+      display_name: "BGE-M3 + RRF Ensemble"
+      embedding_preset: "bge-m3"
+      retriever_type: "rrf_ensemble"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 0.99, R: 0.99"
+      expected_performance:
+        precision: 0.99
+        recall: 0.99
+
+    - name: "bge_m3_rrf_multiquery_lc"
+      display_name: "BGE-M3 + RRF + MultiQuery + LC"
+      embedding_preset: "bge-m3"
+      retriever_type: "rrf_multiquery_longcontext"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 0.99, R: 0.98"
+      expected_performance:
+        precision: 0.99
+        recall: 0.98
+
+    - name: "openai_rrf_lc_time"
+      display_name: "OpenAI + RRF + LC + Time"
+      embedding_preset: "openai-large"
+      retriever_type: "rrf_longcontext_timeweighted"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 0.94, R: 0.99"
+      expected_performance:
+        precision: 0.94
+        recall: 0.99
+
+    - name: "qwen_rrf_ensemble"
+      display_name: "Qwen + RRF Ensemble"
+      embedding_preset: "qwen"
+      retriever_type: "rrf_ensemble"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 0.96, R: 0.99"
+      expected_performance:
+        precision: 0.96
+        recall: 0.99
+
+    - name: "upstage_rrf_ensemble"
+      display_name: "Upstage + RRF Ensemble"
+      embedding_preset: "upstage"
+      retriever_type: "rrf_ensemble"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 0.99, R: 0.97"
+      expected_performance:
+        precision: 0.99
+        recall: 0.97
+
+    - name: "openai_rrf_multiquery"
+      display_name: "OpenAI + RRF + MultiQuery"
+      embedding_preset: "openai-large"
+      retriever_type: "rrf_multiquery"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 0.95, R: 0.87"
+      expected_performance:
+        precision: 0.95
+        recall: 0.87
+
+    - name: "gemini_rrf_multiquery"
+      display_name: "Gemini + RRF + MultiQuery"
+      embedding_preset: "gemini"
+      retriever_type: "rrf_multiquery"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 0.93, R: 0.97"
+      expected_performance:
+        precision: 0.93
+        recall: 0.97
+
+# 임원 보고서용 (의사결정) - Faithfulness 우선
+executive_report:
+  name: "임원 보고서 (의사결정)"
+  priority: ["faithfulness", "precision", "recall"]
+  system_prompt_path: "prompts/templates/service/executive_report/system_prompt.txt"
+  answer_generation_prompt_path: "prompts/templates/service/executive_report/answer_generation_prompt.txt"
+
+  # 평가할 리트리버 조합 (주간 보고서와 동일한 10개)
+  retrievers:
+    - name: "upstage_rrf_multiquery_lc"
+      display_name: "Upstage + RRF + MultiQuery + LC"
+      embedding_preset: "upstage"
+      retriever_type: "rrf_multiquery_longcontext"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 1.00, R: 1.00"
+      expected_performance:
+        precision: 1.00
+        recall: 1.00
+
+    - name: "openai_rrf_multiquery_lc"
+      display_name: "OpenAI + RRF + MultiQuery + LC"
+      embedding_preset: "openai-large"
+      retriever_type: "rrf_multiquery_longcontext"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 1.00, R: 0.99"
+      expected_performance:
+        precision: 1.00
+        recall: 0.99
+
+    - name: "qwen_rrf_multiquery_lc"
+      display_name: "Qwen + RRF + MultiQuery + LC"
+      embedding_preset: "qwen"
+      retriever_type: "rrf_multiquery_longcontext"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 1.00, R: 0.97"
+      expected_performance:
+        precision: 1.00
+        recall: 0.97
+
+    - name: "bge_m3_rrf_ensemble"
+      display_name: "BGE-M3 + RRF Ensemble"
+      embedding_preset: "bge-m3"
+      retriever_type: "rrf_ensemble"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 0.99, R: 0.99"
+      expected_performance:
+        precision: 0.99
+        recall: 0.99
+
+    - name: "bge_m3_rrf_multiquery_lc"
+      display_name: "BGE-M3 + RRF + MultiQuery + LC"
+      embedding_preset: "bge-m3"
+      retriever_type: "rrf_multiquery_longcontext"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 0.99, R: 0.98"
+      expected_performance:
+        precision: 0.99
+        recall: 0.98
+
+    - name: "openai_rrf_lc_time"
+      display_name: "OpenAI + RRF + LC + Time"
+      embedding_preset: "openai-large"
+      retriever_type: "rrf_longcontext_timeweighted"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 0.94, R: 0.99"
+      expected_performance:
+        precision: 0.94
+        recall: 0.99
+
+    - name: "qwen_rrf_ensemble"
+      display_name: "Qwen + RRF Ensemble"
+      embedding_preset: "qwen"
+      retriever_type: "rrf_ensemble"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 0.96, R: 0.99"
+      expected_performance:
+        precision: 0.96
+        recall: 0.99
+
+    - name: "upstage_rrf_ensemble"
+      display_name: "Upstage + RRF Ensemble"
+      embedding_preset: "upstage"
+      retriever_type: "rrf_ensemble"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 0.99, R: 0.97"
+      expected_performance:
+        precision: 0.99
+        recall: 0.97
+
+    - name: "openai_rrf_multiquery"
+      display_name: "OpenAI + RRF + MultiQuery"
+      embedding_preset: "openai-large"
+      retriever_type: "rrf_multiquery"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 0.95, R: 0.87"
+      expected_performance:
+        precision: 0.95
+        recall: 0.87
+
+    - name: "gemini_rrf_multiquery"
+      display_name: "Gemini + RRF + MultiQuery"
+      embedding_preset: "gemini"
+      retriever_type: "rrf_multiquery"
+      top_k_list: [6, 8, 10, 12]
+      description: "P: 0.93, R: 0.97"
+      expected_performance:
+        precision: 0.93
+        recall: 0.97
+
+# 임베딩 모델 프리셋 매핑 (model_config.yaml 참조)
+# 중복 제거: model_config.yaml의 embedding_presets 사용
+
+# 리트리버 타입 설정
+retriever_types:
+  rrf_multiquery_longcontext:
+    type: "rrf_with_multiquery_and_longcontext"
+    params:
+      k: 10
+      use_multiquery: true
+      use_longcontext: true
+
+  rrf_ensemble:
+    type: "rrf_ensemble"
+    params:
+      k: 10
+      ensemble_weights: [0.5, 0.5]
+
+  rrf_multiquery:
+    type: "rrf_with_multiquery"
+    params:
+      k: 10
+      use_multiquery: true
+
+  rrf_longcontext_timeweighted:
+    type: "rrf_longcontext_timeweighted"
+    params:
+      k: 10
+      use_longcontext: true
+      time_weight: 0.3
+
+# LLM 설정 (평가용)
+llm:
+  provider: "openrouter"
+  model_name: "anthropic/claude-3.5-sonnet"
+  temperature: 0.1
+  max_tokens: 2000
+
+# 테스트용 LLM 목록 (test_executive_simple.py, test_weekly_simple.py에서 사용)
+test_llms:
+  - name: "phi4"
+    display_name: "Phi-4"
+    model_id: "azure_ai:Phi-4"
+    description: "Microsoft의 경량 모델"
+    context_limit: 16384
+    max_docs: 8  # Phi-4는 컨텍스트 제한으로 문서 수 제한
+
+  - name: "deepseek_v31"
+    display_name: "DeepSeek-V3.1"
+    model_id: "azure_ai:DeepSeek-V3.1"
+    description: "DeepSeek 최신 버전"
+
+  - name: "gpt41"
+    display_name: "OpenAI GPT-4.1"
+    model_id: "azure_ai:gpt-4.1"
+    description: "OpenAI GPT-4.1"
+
+  - name: "gpt51"
+    display_name: "OpenAI GPT-5.1"
+    model_id: "azure_ai:gpt-5.1"
+    description: "OpenAI GPT-5.1 최신 모델"
+
+  - name: "llama33_70b"
+    display_name: "Llama-3.3-70B-Instruct"
+    model_id: "azure_ai:Llama-3.3-70B-Instruct"
+    description: "Meta Llama 3.3 70B"
+
+  - name: "claude_opus_45"
+    display_name: "Claude 4.5 Opus"
+    model_id: "anthropic:claude-opus-4.5"
+    description: "Anthropic Claude Opus 4.5"
+
+  - name: "claude_sonnet_45"
+    display_name: "Claude 4.5 Sonnet"
+    model_id: "anthropic:claude-sonnet-4.5"
+    description: "Anthropic Claude Sonnet 4.5"
+
+# 테스트 질문 (interactive 모드 기본값)
+test_questions:
+  weekly_report:
+    - "9월 첫째주 주요 업무 내용을 요약해줘"
+    - "이번 달 주요 업무 내용을 요약해줘"
+    - "추천시스템과 관련해서 11월 첫째주 주요 업무 내용 요약해줘"
+    - "8월 아쿠아누리와 관련해서 업무 내용 요약해줘"
+    - "최근 학습하거나 연구한 기술을 기반으로 12월 보고서 만들어줘"
+
+  executive_report:
+    - "10월 최종 보고서 만들어줘"
+    - "지금까지 한 것 중에 중요 요인들로 최종 보고서 만들어줘"
+    - "추천시스템 최종 보고서 만들어줘"
+    - "아쿠아누리 최종 보고서 만들어줘"
+    - "12월 최종 보고서 만들어줘"
+
+# 간단 테스트용 리트리버 설정 (test_executive_simple.py, test_weekly_simple.py에서 사용)
+simple_test_retrievers:
+  weekly_report:
+    - name: "bge_m3_rrf_ensemble"
+      display_name: "BGE-M3 RRF Ensemble Top 6"
+      embedding: "bge-m3"
+      type: "rrf_ensemble"
+      top_k: 6
+      description: "Precision 완벽 + 빠른 속도"
+
+    - name: "upstage_rrf_ensemble"
+      display_name: "Upstage RRF Ensemble Top 6"
+      embedding: "upstage"
+      type: "rrf_ensemble"
+      top_k: 6
+      description: "Faithfulness 최고"
+
+    - name: "openai_rrf_multiquery_lc"
+      display_name: "OpenAI RRF MultiQuery LC Top 8"
+      embedding: "openai-large"
+      type: "rrf_multiquery_lc"
+      top_k: 8
+      description: "Faithfulness 2위 + LC 전략"
+
+  executive_report:
+    - name: "gemini_rrf_multiquery"
+      display_name: "Gemini RRF MultiQuery Top 6"
+      embedding: "gemini"
+      type: "rrf_multiquery_lc"
+      top_k: 6
+      description: "메인 추천 - 종합 성능 우수"
+
+    - name: "bge_m3_rrf_multiquery_lc"
+      display_name: "BGE-M3 RRF MultiQuery LC Top 8"
+      embedding: "bge-m3"
+      type: "rrf_multiquery_lc"
+      top_k: 8
+      description: "백업 옵션 1 - Precision + LC 전략"
+
+    - name: "openai_rrf_multiquery"
+      display_name: "OpenAI RRF MultiQuery Top 8"
+      embedding: "openai-large"
+      type: "rrf_multiquery_lc"
+      top_k: 8
+      description: "백업 옵션 2 - Faithfulness + MultiQuery"
+
+# 기본 리트리버 인덱스
+default_retriever_index:
+  weekly_report: 0  # BGE-M3
+  executive_report: 2  # OpenAI
+
+# 평가 메트릭 설정
+metrics:
+  precision:
+    name: "Precision"
+    description: "검색된 문서의 관련성"
+    weight: 1.0
+
+  recall:
+    name: "Recall"
+    description: "모든 관련 정보 포함 여부"
+    weight: 1.0
+
+  faithfulness:
+    name: "Faithfulness"
+    description: "검색 결과에 충실한 답변 생성"
+    weight: 1.0

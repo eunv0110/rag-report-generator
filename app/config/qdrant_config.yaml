@@ -1,0 +1,11 @@
+storage:
+  # Storage path for all collections
+  storage_path: ./data/qdrant_unified
+
+service:
+  # HTTP API port
+  http_port: 6333
+  # gRPC API port
+  grpc_port: 6334
+
+log_level: INFO

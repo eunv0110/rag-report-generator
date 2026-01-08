@@ -1,0 +1,92 @@
+# 보고서 생성 설정
+# Weekly Report (운영팀) vs Executive Report (임원진)
+
+# 주간 보고서 설정
+weekly_report:
+  report_type: "weekly"
+
+  # Retriever 설정
+  retriever:
+    name: "qwen3_reranker_bge_m3_rrf_ensemble"
+    display_name: "Qwen3-Reranker-4B + BGE-M3 + RRF Ensemble (Top 6)"
+    embedding: "bge-m3"
+    type: "rrf_ensemble"
+    top_k: 6
+    description: "Qwen3 Reranker + Precision 완벽 + 빠른 속도"
+    use_reranker: true
+
+    # RRF Ensemble 설정
+    rrf:
+      bm25_weight: 0.5
+      dense_weight: 0.5
+
+    # Reranker 설정
+    reranker:
+      batch_size: 20  # GPU 메모리 여유 있음 (38GB free) → 속도 향상
+
+  # LLM 설정
+  llm:
+    name: "deepseek_v31"
+    display_name: "DeepSeek-V3.1"
+    model_id: "azure_ai:DeepSeek-V3.1"
+    description: "DeepSeek 최신 버전"
+
+    generation:
+      temperature: 0
+      max_completion_tokens: 1000
+
+  # 경로 설정 (환경변수에서 로드)
+  paths:
+    qdrant_lock_subdir: "baai-bge-m3"  # QDRANT_DATA_DIR 기준 하위 경로
+    prompts_base: "templates/service/weekly_report"  # PROMPTS_BASE_DIR 기준 하위 경로
+
+  # 기본 질문
+  default_questions:
+    - "9월 첫째주 주요 업무 내용을 요약해줘"
+    - "이번 달 주요 업무 내용을 요약해줘"
+    - "추천시스템과 관련해서 11월 첫째주 주요 업무 내용 요약해줘"
+
+# 임원 보고서 설정
+executive_report:
+  report_type: "executive"
+
+  # Retriever 설정
+  retriever:
+    name: "openai_rrf_multiquery"
+    display_name: "OpenAI + RRF MultiQuery (Top 8)"
+    embedding: "openai-large"
+    type: "rrf_multiquery"
+    top_k: 8
+    description: "Faithfulness + MultiQuery"
+
+    # RRF Ensemble 설정
+    rrf:
+      bm25_weight: 0.5
+      dense_weight: 0.5
+
+    # MultiQuery 설정
+    multiquery:
+      num_queries: 3
+      temperature: 0.7
+
+  # LLM 설정
+  llm:
+    name: "gpt41"
+    display_name: "GPT-4.1"
+    model_id: "azure_ai:gpt-4.1"
+    description: "OpenAI GPT-4.1"
+
+    generation:
+      temperature: 0
+      max_completion_tokens: 1000
+
+  # 경로 설정 (환경변수에서 로드)
+  paths:
+    qdrant_lock_subdir: "openai-large"  # QDRANT_DATA_DIR 기준 하위 경로
+    prompts_base: "templates/service/executive_report"  # PROMPTS_BASE_DIR 기준 하위 경로
+
+  # 기본 질문
+  default_questions:
+    - "10월 최종 보고서 만들어줘"
+    - "지금까지 한 것 중에 중요 요인들로 최종 보고서 만들어줘"
+    - "추천시스템 최종 보고서 만들어줘"

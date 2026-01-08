@@ -11,3 +11,4 @@ retrievers_legacy/
 logs/
 report_generator/data
 report_generator/results
+bin/qdrant
