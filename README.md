@@ -122,7 +122,7 @@ Notion 문서를 기반으로 텍스트와 이미지를 모두 처리하는 멀�
 - 육안 평가 (실무 관점)
 - LLM-as-Judge (3개 Judge 모델)
 
-## 📊 최종 선정 결과
+## 최종 선정 결과
 
 ### 주간 보고서
 ```
@@ -146,7 +146,7 @@ OpenAI + RRF MultiQuery (Top 8) + GPT-4.1
 - 육안 평가 87.5/100, LLM-as-Judge 상위권
 - 비용과 응답 속도(10.8s)의 균형
 
-## 💡 주요 발견사항
+## 주요 발견사항
 
 ### 1. Reranker의 차별적 효과
 
@@ -242,12 +242,6 @@ OpenAI + RRF MultiQuery (Top 8) + GPT-4.1
 - TimeWeighted Retrieval
 - RAPTOR
 
-## 참고자료
-
-### 평가 지표
-- **Context Precision**: 검색된 문서의 정확도
-- **Context Recall**: 필요한 정보의 검색 완성도
-- **Faithfulness**: 생성 답변의 문서 근거 충실도
 
 ### 실험 규모
 - 총 실험 조합: **140+ 구성**
@@ -264,3 +258,4 @@ OpenAI + RRF MultiQuery (Top 8) + GPT-4.1
 2. **비용-품질 트레이드오프**: 작성 빈도를 고려한 LLM 선정 전략
 3. **평가 방식의 다양성**: 실무 관점(육안)과 객관적 지표(LLM-as-Judge) 병행 필요
 4. **모델 구조적 한계**: 장문 문서 환경에서의 Faithfulness 개선 한계
+
